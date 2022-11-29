@@ -1,0 +1,137 @@
+---
+title: "Limma RNAseq AAA"
+author: "Gerard Temprano Sagrera"
+date: "23/11/2022"
+output: html_document
+---
+
+```{r, warning=FALSE, message=FALSE, echo = FALSE}
+library(limma);library(data.table);library(edgeR);library(tidyverse)
+```
+
+```{r}
+limmaUsersGuide()
+```
+
+
+### Make a Count Matrix from the RSEM results ###
+```{r}
+ff <- list.files("/home/gerard/RNAseq/GTEx",pattern = "*.rsem.genes.results", recursive = T, full.names = T)
+
+count.matrix <- c()
+
+# Loop through all *.rsem.genes.results files obtained from RSEM.
+for (i in 1:length(ff)) {
+  if (i == 1) {
+    res <- fread(ff[i], select = c("gene_id", "TPM"))
+    sample <- strsplit(ff[i], "/")[[1]][6]
+    names(res)[names(res) == "TPM"] <- sample
+    count.matrix <- cbind(count.matrix, res)
+  } else {
+    res <- fread(ff[i], select = c("TPM"))
+    sample <- strsplit(ff[i], "/")[[1]][6]
+    names(res)[names(res) == "TPM"] <- sample
+    count.matrix <- cbind(count.matrix, res)
+  }
+}
+
+if (ncol(count.matrix) != 142) {warning("Not all samples have been analyzed")}
+
+count.matrix <- count.matrix %>% remove_rownames %>% column_to_rownames(var="gene_id")
+```
+
+
+### Convert to DGElist object and remove rows with consistent 0 or low counts ###
+```{r}
+dge <- DGEList(counts=count.matrix)
+
+# Set "Control" to be the first level
+group_list <- factor(x = c(rep("Case",4), rep("Control",4)),
+              levels=c("Control","Case"))
+
+design <- model.matrix(~group_list) 
+
+keep <- filterByExpr(dge, design)
+dge <- dge[keep,,keep.lib.sizes=FALSE]
+```
+
+
+### Apply TMM Normalization ###
+```{r}
+dge <- calcNormFactors(dge)
+```
+
+
+### Using normalized values ###
+```{r}
+v.norm <- voom(dge, design, plot=TRUE)
+fit <- lmFit(v.norm,design)
+fit2 <- eBayes(fit)
+
+tempOutput.norm <- topTable(
+    fit2, n=Inf,
+    adjust.method = 'BH',
+    coef='group_listCase')
+```
+
+
+### Using matrix of counts directly ###
+```{r}
+v.counts <- voom(count.matrix, design, plot=TRUE)
+fit <- lmFit(v.counts,design)
+fit2 <- eBayes(fit)
+
+tempOutput.counts <- topTable(
+    fit2, n=Inf,
+    adjust.method = 'BH',
+    coef='group_listCase')
+```
+
+
+### Using matrix of counts and normalize ###
+```{r}
+v <- voom(count.matrix,design,normalize="quantile", plot = T)
+fit <- lmFit(v,design)
+fit2 <- eBayes(fit)
+
+tempOutput <- topTable(
+    fit2, n=Inf,
+    adjust.method = 'BH',
+    coef='group_listCase')
+```
+
+
+
+```{r}
+tempOutput.norm
+```
+
+```{r}
+tempOutput.counts
+```
+
+```{r}
+tempOutput
+```
+
+
+
+```{r}
+summary(decideTests(fit[,-1]))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

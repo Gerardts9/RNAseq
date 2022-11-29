@@ -1,0 +1,180 @@
+---
+title: "AAA RNAseq"
+author: "Gerard Temprano Sagrera"
+date: 25/10/2022
+output: "html_document"
+---
+
+Load packages
+```{r, warning=FALSE, message=FALSE, echo = FALSE}
+library(openxlsx);library(data.table);library(stringr);library(ggbiplot)
+```
+
+
+First technical table, only with cases and controls
+```{r}
+tec1 <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Techinc_1.xlsx")
+nrow(tec1) # 141 Samples.
+table(tec1$`Case/Control`) # 44 Controls / 97 Cases
+```
+
+Check all the samples have been sequenced
+```{r}
+samples <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Correspondencias.xlsx")
+
+mm <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/20221013_Formulario_TablaMuestras_Gerard.xlsx", startRow = 5)
+mm <- mm[grep("HSP",mm$Nombre.de.la.muestra),]
+mm2 <- mm[mm$Nombre.de.la.muestra%in%samples$SantPau_ID,]
+
+length(intersect(samples$SantPau_ID, mm$Nombre.de.la.muestra))
+```
+
+
+Analyze table obtained from the 'multiQC'
+```{r}
+samples <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Samples_Table.xlsx")
+samples <- samples[!is.na(samples$M.Reads),] # 141 Samples sequenced.
+
+range(samples$M.Reads, na.rm = T)
+range(samples$M.Reads.Mapped, na.rm = T)
+range(samples$M.Aligned.STAR, na.rm = T)
+
+median(samples$M.Reads, na.rm = T)
+median(samples$M.Reads.Mapped, na.rm = T)
+median(samples$M.Aligned.STAR, na.rm = T)
+```
+
+
+Density plots
+```{r}
+p <- density(samples$M.Aligned.STAR) # Aligned uniquely
+p2 <- density(samples$M.Reads) # Total
+p3 <- density(samples$M.Reads.Mapped) # Mapped in bam file (samtools) 
+```
+
+```{r, include=TRUE}
+plot(density(samples$M.Aligned.STAR), main = "Density Plot",ylim = range(p$y, p2$y, p3$y), xlim = range(p$x, p2$x, p3$x), col = "green")
+lines(density(samples$M.Reads), col = "blue")
+lines(density(samples$M.Reads.Mapped), col = "red")
+legend("topright",legend=c("Aligned STAR","Total Reads","Mapped Samtools"), col = c("green","blue","red"), lty = 1, cex = 0.8, bty = "n", box.lty = 0)
+```
+
+
+
+Ranges distribution
+```{r}
+table(cut(samples$M.Aligned.STAR, breaks=c(0,5,10,20,30,max(samples$M.Aligned.STAR))))
+```
+
+
+
+Analyze annotation file:
+```{r, message=FALSE, warning=FALSE}
+gtf <- fread("C://Users/Gerard/Downloads/gencode.v34.annotation.gtf.gz", header = F, nThread = 6)
+gtf <- gtf[gtf$V3 == "gene",]
+```
+
+Filter genes: 
+  1. Select "protein coding" and "lnRNA" genes.
+  2. Select annotation levels "1" and "2".
+
+```{r, warning=FALSE}
+genes <- gtf[,9]
+
+genes$gene_id <- str_split_fixed(genes$V9,";",7)[,1]
+genes$gene_id <- gsub("gene_id","",genes$gene_id)
+genes$gene_id <- gsub("\\..*","",genes$gene_id)
+genes$gene_id <- gsub("[^A-Za-z0-9]","",genes$gene_id)
+
+genes$gene_type <- str_split_fixed(genes$V9,";",7)[,2]
+genes$gene_type <- gsub("gene_type","",genes$gene_type)
+genes$gene_type <- gsub("[^A-Za-z0-9]","",genes$gene_type)
+
+genes$gene_name <- str_split_fixed(genes$V9,";",7)[,3]
+genes$gene_name <- gsub("gene_name","",genes$gene_name)
+genes$gene_name <- gsub("[^A-Za-z0-9]","",genes$gene_name)
+
+genes$level <- str_split_fixed(genes$V9,";",7)[,4]
+genes$level <- gsub("level","",genes$level)
+genes$level <- gsub("[^A-Za-z0-9]","",genes$level)
+
+genes <- genes[,-c("V9")]
+
+merged <- readRDS("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/salmon.merged.gene_counts.rds")
+#merged <- readRDS("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/salmon.merged.gene_counts_length_scaled.rds")
+#merged <- readRDS("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/salmon.merged.transcript_counts.rds")
+
+ff <- rownames(merged)
+
+genes2 <- genes[genes$gene_id%in%ff,]
+
+#write.xlsx(table(genes2$gene_type), "C://Users/Gerard/Desktop/AAA/RNAseq/Gene.Types.xlsx", col.names = F)
+#write.xlsx(table(genes2$level), "C://Users/Gerard/Desktop/AAA/RNAseq/Annot.Levels.xlsx", col.names = F)
+
+genes2 <- genes2[genes2$gene_type == "proteincoding" | genes2$gene_type == "lncRNA",]
+genes2 <- genes2[genes2$level == 1 | genes2$level == 2,]
+```
+
+
+Prepare Techincal table 2
+```{r}
+#corr <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Correspondencias.xlsx")
+
+#fc <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/FlowCellType Date.xlsx", sheet = 1)
+#s1 <- fc$S1
+#sp <- fc$SP
+
+#corr$FC <- ""
+#corr[corr$Seq_ID%in%s1,]$FC <- "S1"
+#corr[corr$Seq_ID%in%sp,]$FC <- "SP"
+
+
+#dates <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/FlowCellType Date.xlsx", detectDates = T, sheet = 2)
+
+#corr$Date <- ""
+#dd1 <- dates$`2022-08-19`
+#dd2 <- dates$`2022-08-29`
+
+#corr[corr$Seq_ID%in%dd1,]$Date <- "2022-08-19"
+#corr[corr$Seq_ID%in%dd2,]$Date <- "2022-08-29"
+
+
+#plate <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/BatchPlate.xlsx")
+
+#corr2 <- merge(corr, plate[,c("Seq_ID","Batch")], by = "Seq_ID")
+
+
+#case <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/CaseControl.xlsx")
+
+#corr3 <- merge(corr2, case[,c("SantPau_ID","Case")], by = "SantPau_ID")
+
+# Add GC:
+#samples <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Samples_Table.xlsx")
+#samples <- samples[!is.na(samples$M.Reads),]
+#samples$Sample.Name <- gsub("_R1","",samples$Sample.Name)
+#colnames(samples)[colnames(samples) == '%.GC'] <- "GC_Mean"
+
+#corr4 <- merge(corr3, samples[,c("Sample.Name","GC_Mean")], by.x = "SantPau_ID", by.y = "Sample.Name")
+
+
+# Add RIN, DV200 and Qubit:
+#rin <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/RIN.xlsx")
+
+#corr_def <- merge(corr4, rin[,c("Sample.ID", "RIN", "DV200", "Qubit")], by.x = "SantPau_ID", by.y = "Sample.ID")
+
+
+#write.xlsx(corr_def, "C://Users/Gerard/Desktop/AAA/RNAseq/Tables/Technical_CompleteV2.xlsx")
+
+#names(corr_def)
+```
+
+
+
+
+
+
+
+
+
+
+
