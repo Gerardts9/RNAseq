@@ -78,7 +78,7 @@ identical(genes2$gene_id,rownames(counts))
 ```
 
 
-Apply TPM normalization to salmon counts
+Apply TPM transformation to salmon counts
 ```{r}
 counts <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.salmon.txt")
 lengths <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Lengths.txt")
@@ -98,16 +98,15 @@ counts.tpm <- as.data.frame(r_tpm(counts, lengths))
 ```
 
 
-
-Sex identification
+#### Sex identification ### 
 ```{r}
 xist <- genes2[genes2$gene_name=="XIST",]$gene_id
-counts.sex.f <- counts.tpm[rownames(counts.tpm)%in%xist,]
+counts.sex.f <- counts[rownames(counts)%in%xist,]
 
 y.gene <- c("SRY","ZFY","RPS4Y1","AMELY","TBL1Y","PCDH11Y","TGIF2LY","TSPY1","TSPY2","AZFa","USP9Y","DDX3Y","UTY","TB4Y","AZFb","CYorf15","RPS4Y2","EIF1AY","KDM5D","XKRY","PRY","PRY2","HSFY1","HSFY2","RBMY1A1","AZFc","DAZ1","DAZ2","DAZ3","DAZ4","CDY1","CDY2","VCY1","VCY2")
 
 y.list <- genes2[genes2$gene_name%in%y.gene,]$gene_id
-counts.sex.m <- counts.tpm[rownames(counts.tpm)%in%y.list,]
+counts.sex.m <- counts[rownames(counts)%in%y.list,]
 
 # Combine the XIST gene with the mean expression of all Y chromosome genes:
 counts.sex <- rbind(counts.sex.f, data.frame(t(colMeans(counts.sex.m))))
@@ -115,19 +114,39 @@ counts.sex <- as.data.frame(t(counts.sex))
 colnames(counts.sex) <- c("XIST","Chromosome_Y")
 ```
 
+```{r}
+counts.sex[rownames(counts.sex) %in% "HSP075",]
+```
+
+
+Apply log transformation to the sex counts:
+```{r}
+counts.sex2 <- log(counts.sex)
+counts.sex2[sapply(counts.sex2, is.infinite)] <- 0
+```
+
+
+Apply normalization to the sex counts:
+```{r}
+counts.sex2 <- as.data.frame(scale(counts.sex2))
+colMeans(counts.sex2)
+apply(counts.sex2, 2, sd)
+counts.sex2$ID <- rownames(counts.sex2)
+```
+
 
 ```{r}
-ggplot(counts.sex, aes(x = XIST, y = Chromosome_Y)) +
+ggplot(counts.sex2, aes(x = XIST, y = Chromosome_Y, label=ID)) +
   theme_bw() +
-  geom_point(colour = "blue") +
-  geom_point(data = counts.sex[rownames(counts.sex) %in% c("HSP214", "HSP217"),],
+  geom_text(colour = "lightblue",
+            size = 3) +
+  geom_text(data = counts.sex2[rownames(counts.sex2) %in% c("HSP214","HSP217","HSP075"),],
              colour = "red",
              size = 3) +
   ggtitle("Gender RNAseq") +
-  xlim(0, 350) + ylim(0, 20) +
   theme(plot.title = element_text(hjust = 0.5))
 
-ggsave("C://Users/Gerard/Downloads/Test2.png", height = 10)
+#ggsave("C://Users/Gerard/Downloads/Test2.png", height = 10)
 ```
 
 
@@ -214,6 +233,7 @@ counts.tpm <- t(counts.tpm)
 counts_var <- counts.tpm[,apply(counts.tpm, 2, var, na.rm=TRUE) != 0]
 
 my_pca <- prcomp(counts_var, center = T, scale. = T)
+my_pca$x
 ```
 
 

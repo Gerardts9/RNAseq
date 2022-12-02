@@ -9,9 +9,8 @@ output: html_document
 library(openxlsx);library(ggplot2)
 ```
 
-
 ```{r}
-bio <- read.xlsx("C://Users/Gerard/Downloads/20221115_Datos Pacientes.xlsx")
+bio <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/20221115_Datos Pacientes.xlsx")
 bio <- bio[2:nrow(bio),]
 bio$SEXO <- ifelse(bio$SEXO == 1, "Man","Woman")
 ```
@@ -20,7 +19,6 @@ bio$SEXO <- ifelse(bio$SEXO == 1, "Man","Woman")
 cases <- bio[bio$Status == "Case",]
 controls <- bio[bio$Status == "Control",]
 ```
-
 
 ```{r}
 cases2 <- cases[,7:ncol(cases)]
@@ -31,25 +29,26 @@ cases2
 cases2[rowSums(is.na(cases2)) > 6,]
 ```
 
-
 ```{r}
 colSums(is.na(bio))
 ```
-1. Only sample, status, sex and age have no NAs.
-2. Cases only: Type, Symptomatic, Height, Weight, PAD, Other Aneurysm, Aortic Diameter, Leucocytes, Neutrophiles, Limphocytes, Monocytes, Platalets, Hb, RDW.
-3. Controls only: Pathology.
+
+1.  Only sample, status, sex and age have no NAs.
+2.  Cases only: Type, Symptomatic, Height, Weight, PAD, Other Aneurysm, Aortic Diameter, Leucocytes, Neutrophiles, Limphocytes, Monocytes, Platalets, Hb, RDW.
+3.  Controls only: Pathology.
 
 Which column would be word to try to complete?
 
+### Sex by Status:
 
-### Sex by Status: ###
 ```{r}
 table(bio$SEXO, bio$Status)
 ```
+
 There are clearly more males among controls than among cases.
 
+### Age distribution between cases and controls:
 
-### Age distribution between cases and controls: ###
 ```{r}
 ggplot(data = bio, aes(x = Status, y = age)) +
   geom_boxplot()
@@ -59,34 +58,36 @@ ggplot(data = bio, aes(x = Status, y = age)) +
 ggplot(bio, aes(age, colour = Status)) + geom_density()  
 ```
 
+### Aneurysm type (Cases only):
 
-### Aneurysm type (Cases only): ###
 ```{r}
 table(cases$TIPOANEURISMA, useNA = "always")
 ```
+
 Among cases, there are 27 NAs
 
+### Pathology (Controls only):
 
-### Pathology (Controls only): ###
 ```{r}
 table(controls$Pathology, useNA = "always")
 ```
 
+### Symptomatic (Cases only):
 
-
-### Symptomatic (Cases only): ###
 ```{r}
 table(cases$symptomatic, useNA = "always")
 ```
+
 There are only 5 sympromatic aneurysms among cases.
-
-
 
 Controls don't have information about Height or Weight.
 
-### Height (Cases only): ###
+### Height (Cases only):
+
 ```{r}
 sum(is.na(cases$Height_cm))
+
+17/nrow(cases)*100
 ```
 
 ```{r}
@@ -99,8 +100,8 @@ ggplot(cases, aes(Height_cm)) + geom_density()
 
 There are 17 cases with no Height information.
 
+### Weight (Cases only):
 
-### Weight (Cases only): ###
 ```{r}
 sum(is.na(cases$Weight_Kg))
 ```
@@ -115,93 +116,99 @@ ggplot(cases, aes(Weight_Kg)) + geom_density()
 
 There are 16 cases with no Weight information.
 
+### Smoking:
 
-### Smoking: ###
 ```{r}
 table(cases$Smoking, useNA = "always")
 ```
+
 There are 12 cases with no smoking information.
 
 ```{r}
 table(controls$Smoking, useNA = "always")
 ```
+
 There are 7 controls with no smoking information.
 
+## Diseases
 
+### Hypertension:
 
-## Diseases ##
-
-### Hypertension: ###
 ```{r}
 table(bio$hypertension, bio$Status, useNA = "always")
 ```
+
 There are 19 NAs.
 
+### Dyslipedmia:
 
-### Dyslipedmia: ###
 ```{r}
 table(bio$dyslipidemia, bio$Status, useNA = "always")
 ```
+
 There are 19 NAs.
 
+### Diabetes mellitus:
 
-### Diabetes mellitus: ###
 ```{r}
 table(bio$diabetes.mellitus, bio$Status, useNA = "always")
 ```
-There are 19 NAs.
 
+There are 19 NAs.
 
 ```{r}
 if(identical(bio[is.na(bio$hypertension),]$Muestra, bio[is.na(bio$dyslipidemia),]$Muestra) == TRUE & identical(bio[is.na(bio$dyslipidemia),]$Muestra, bio[is.na(bio$diabetes.mellitus),]$Muestra) == TRUE){
   print("The 19 samples with NAs are the same for Hypertension, Dyslipedmia and Diabetes Mellitus")}
 ```
 
+### PAD (only Cases):
 
-### PAD (only Cases): ###
 ```{r}
 table(cases$PAD, useNA = "always")
 ```
+
 There are 13 NAs among cases.
 
+### Other Aneurysm (only cases):
 
-### Other Aneurysm (only cases): ###
 ```{r}
 table(cases$other_aneurysm, useNA = "always")
 ```
+
 There are 12 NAs among cases.
 
+### CVE:
 
-### CVE: ###
 ```{r}
 table(bio$CVE, bio$Status, useNA = "always")
 ```
+
 There are 21 NAs.
 
+### CVD:
 
-### CVD: ###
 ```{r}
 table(bio$CVD, bio$Status, useNA = "always")
 ```
 
-### COPD: ###
+### COPD:
+
 ```{r}
 table(bio$COPD, bio$Status, useNA = "always")
 ```
 
+### Kidney Disease:
 
-
-### Kidney Disease: ###
 ```{r}
 table(bio$kidney_disease, bio$Status, useNA = "always")
 ```
 
+### Aortic Diameter:
 
-
-### Aortic Diameter: ###
 ```{r}
 ggplot(cases, aes(aortc_diameter_mm)) + geom_density()
 ```
+
 There are 12 cases with NAs diameter.
 
 ```{r}
@@ -212,17 +219,3 @@ nrow(cases[cases$aortc_diameter_mm < 55,])
 ```{r}
 range(cases$aortc_diameter_mm, na.rm = T)
 ```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
