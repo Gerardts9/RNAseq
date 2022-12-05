@@ -98,7 +98,8 @@ counts.tpm <- as.data.frame(r_tpm(counts, lengths))
 ```
 
 
-#### Sex identification ### 
+#### Sex identification ###
+Using the raw counts to increase the number of available genes.
 ```{r}
 xist <- genes2[genes2$gene_name=="XIST",]$gene_id
 counts.sex.f <- counts[rownames(counts)%in%xist,]
@@ -233,7 +234,7 @@ counts.tpm <- t(counts.tpm)
 counts_var <- counts.tpm[,apply(counts.tpm, 2, var, na.rm=TRUE) != 0]
 
 my_pca <- prcomp(counts_var, center = T, scale. = T)
-my_pca$x
+counts_var[1:5,1:5]
 ```
 
 

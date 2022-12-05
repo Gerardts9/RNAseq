@@ -10,11 +10,11 @@ library(limma);library(data.table);library(edgeR);library(tidyverse)
 ```
 
 ```{r}
-limmaUsersGuide()
+#limmaUsersGuide()
 ```
 
+### Make a Count Matrix from the RSEM results
 
-### Make a Count Matrix from the RSEM results ###
 ```{r}
 ff <- list.files("/home/gerard/RNAseq/GTEx",pattern = "*.rsem.genes.results", recursive = T, full.names = T)
 
@@ -41,7 +41,79 @@ count.matrix <- count.matrix %>% remove_rownames %>% column_to_rownames(var="gen
 ```
 
 
-### Convert to DGElist object and remove rows with consistent 0 or low counts ###
+### Filter genes based on annotation in the annotation file:
+```{r}
+# Load annotation file:
+gtf <- fread("C://Users/Gerard/Downloads/gencode.v26.annotation.gtf.gz", header = F, nThread = 6)
+#gtf <- fread("/home/gerard/RNAseq/GTEx/gencode.v26.annotation.gtf.gz", header = F, nThread = 6)
+gtf <- gtf[gtf$V3 == "gene",]
+```
+
+```{r}
+paste("We have", nrow(gtf), "genes before filtering")
+```
+
+
+```{r}
+geneType <- unlist(lapply(gtf$V9, function(x) strsplit(x, ";")[[1]][2]))
+
+keepGeneType <- which(grepl("*protein_coding*", geneType) | grepl("*lincRNA*", geneType))
+
+gtf <- gtf[keepGeneType,]
+
+paste("We have", nrow(gtf), "genes keeping only protein_coding and lincRNA annotations.")
+```
+
+
+```{r, warning=FALSE}
+# Keep only protein coding and lncRNA genes:
+genes <- gtf[,c("V4","V5","V9")]
+table(genes$V9)
+
+genes$gene_id <- str_split_fixed(genes$V9,";",7)[,1]
+genes$gene_id <- gsub("gene_id","",genes$gene_id)
+genes$gene_id <- gsub("\\..*","",genes$gene_id)
+genes$gene_id <- gsub("[^A-Za-z0-9]","",genes$gene_id)
+
+genes$gene_type <- str_split_fixed(genes$V9,";",7)[,2]
+genes$gene_type <- gsub("gene_type","",genes$gene_type)
+genes$gene_type <- gsub("[^A-Za-z0-9]","",genes$gene_type)
+
+genes$gene_name <- str_split_fixed(genes$V9,";",7)[,3]
+genes$gene_name <- gsub("gene_name","",genes$gene_name)
+genes$gene_name <- gsub("[^A-Za-z0-9]","",genes$gene_name)
+
+genes$level <- str_split_fixed(genes$V9,";",7)[,4]
+genes$level <- gsub("level","",genes$level)
+genes$level <- gsub("[^A-Za-z0-9]","",genes$level)
+
+genes$length <- genes$V5-genes$V4
+
+genes <- genes[,-c("V4","V5","V9")]
+table(genes$gene_type)
+
+merged <- readRDS("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/salmon.merged.gene_counts.rds")
+
+ff <- rownames(merged)
+
+# Select quantified genes:
+genes2 <- genes[genes$gene_id%in%ff,]
+# Select by gene type:
+genes2 <- genes2[genes2$gene_type == "proteincoding" | genes2$gene_type == "lncRNA",]
+# Select by annotation level:
+genes2 <- genes2[genes2$level == 1 | genes2$level == 2,]
+# Remove genes with the same ID:
+genes2 <- genes2[!(duplicated(genes2$gene_id) | duplicated(genes2$gene_id, fromLast = TRUE)), ]
+# Order by gene id:
+genes2 <- genes2[order(genes2$gene_id),]
+```
+
+
+
+
+
+
+### Convert to DGElist object and remove rows with consistent 0 or low counts
 ```{r}
 dge <- DGEList(counts=count.matrix)
 
@@ -53,16 +125,18 @@ design <- model.matrix(~group_list)
 
 keep <- filterByExpr(dge, design)
 dge <- dge[keep,,keep.lib.sizes=FALSE]
+
+paste("We keep", sum(keep), "genes")
 ```
 
+### Apply TMM Normalization
 
-### Apply TMM Normalization ###
 ```{r}
 dge <- calcNormFactors(dge)
 ```
 
+### Using normalized values
 
-### Using normalized values ###
 ```{r}
 v.norm <- voom(dge, design, plot=TRUE)
 fit <- lmFit(v.norm,design)
@@ -74,8 +148,8 @@ tempOutput.norm <- topTable(
     coef='group_listCase')
 ```
 
+### Using matrix of counts directly
 
-### Using matrix of counts directly ###
 ```{r}
 v.counts <- voom(count.matrix, design, plot=TRUE)
 fit <- lmFit(v.counts,design)
@@ -87,8 +161,8 @@ tempOutput.counts <- topTable(
     coef='group_listCase')
 ```
 
+### Using matrix of counts and normalize
 
-### Using matrix of counts and normalize ###
 ```{r}
 v <- voom(count.matrix,design,normalize="quantile", plot = T)
 fit <- lmFit(v,design)
@@ -99,8 +173,6 @@ tempOutput <- topTable(
     adjust.method = 'BH',
     coef='group_listCase')
 ```
-
-
 
 ```{r}
 tempOutput.norm
@@ -114,24 +186,6 @@ tempOutput.counts
 tempOutput
 ```
 
-
-
 ```{r}
 summary(decideTests(fit[,-1]))
 ```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
