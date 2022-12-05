@@ -234,7 +234,6 @@ counts.tpm <- t(counts.tpm)
 counts_var <- counts.tpm[,apply(counts.tpm, 2, var, na.rm=TRUE) != 0]
 
 my_pca <- prcomp(counts_var, center = T, scale. = T)
-counts_var[1:5,1:5]
 ```
 
 
@@ -275,15 +274,9 @@ for (i in 1:9) hist(as.numeric(counts_var[pca1.max[i], ]), main = paste0("Number
 
 
 
-
-
-Techinal batches names
+Technical batches names
 ```{r, echo = FALSE}
 tec <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/Technical_CompleteV2.xlsx")
-```
-
-
-```{r}
 names(tec)
 ```
 

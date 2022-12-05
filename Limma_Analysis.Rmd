@@ -6,14 +6,14 @@ output: html_document
 ---
 
 ```{r, warning=FALSE, message=FALSE, echo = FALSE}
-library(limma);library(data.table);library(edgeR);library(tidyverse)
+library(limma);library(data.table);library(edgeR);library(tidyverse);library(openxlsx)
 ```
 
 ```{r}
-#limmaUsersGuide()
+limmaUsersGuide()
 ```
 
-### Make a Count Matrix from the RSEM results
+### Make a Count Matrix from the RSEM results:
 
 ```{r}
 ff <- list.files("/home/gerard/RNAseq/GTEx",pattern = "*.rsem.genes.results", recursive = T, full.names = T)
@@ -40,12 +40,12 @@ if (ncol(count.matrix) != 142) {warning("Not all samples have been analyzed")}
 count.matrix <- count.matrix %>% remove_rownames %>% column_to_rownames(var="gene_id")
 ```
 
-
 ### Filter genes based on annotation in the annotation file:
+
 ```{r}
 # Load annotation file:
 gtf <- fread("C://Users/Gerard/Downloads/gencode.v26.annotation.gtf.gz", header = F, nThread = 6)
-#gtf <- fread("/home/gerard/RNAseq/GTEx/gencode.v26.annotation.gtf.gz", header = F, nThread = 6)
+gtf <- fread("/home/gerard/RNAseq/GTEx/gencode.v26.annotation.gtf.gz", header = F, nThread = 6)
 gtf <- gtf[gtf$V3 == "gene",]
 ```
 
@@ -53,89 +53,153 @@ gtf <- gtf[gtf$V3 == "gene",]
 paste("We have", nrow(gtf), "genes before filtering")
 ```
 
-
 ```{r}
+# Keep only protein coding and lncRNA genes:
 geneType <- unlist(lapply(gtf$V9, function(x) strsplit(x, ";")[[1]][2]))
-
 keepGeneType <- which(grepl("*protein_coding*", geneType) | grepl("*lincRNA*", geneType))
-
 gtf <- gtf[keepGeneType,]
-
 paste("We have", nrow(gtf), "genes keeping only protein_coding and lincRNA annotations.")
 ```
 
-
-```{r, warning=FALSE}
-# Keep only protein coding and lncRNA genes:
-genes <- gtf[,c("V4","V5","V9")]
-table(genes$V9)
-
-genes$gene_id <- str_split_fixed(genes$V9,";",7)[,1]
-genes$gene_id <- gsub("gene_id","",genes$gene_id)
-genes$gene_id <- gsub("\\..*","",genes$gene_id)
-genes$gene_id <- gsub("[^A-Za-z0-9]","",genes$gene_id)
-
-genes$gene_type <- str_split_fixed(genes$V9,";",7)[,2]
-genes$gene_type <- gsub("gene_type","",genes$gene_type)
-genes$gene_type <- gsub("[^A-Za-z0-9]","",genes$gene_type)
-
-genes$gene_name <- str_split_fixed(genes$V9,";",7)[,3]
-genes$gene_name <- gsub("gene_name","",genes$gene_name)
-genes$gene_name <- gsub("[^A-Za-z0-9]","",genes$gene_name)
-
-genes$level <- str_split_fixed(genes$V9,";",7)[,4]
-genes$level <- gsub("level","",genes$level)
-genes$level <- gsub("[^A-Za-z0-9]","",genes$level)
-
-genes$length <- genes$V5-genes$V4
-
-genes <- genes[,-c("V4","V5","V9")]
-table(genes$gene_type)
-
-merged <- readRDS("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/salmon.merged.gene_counts.rds")
-
-ff <- rownames(merged)
-
-# Select quantified genes:
-genes2 <- genes[genes$gene_id%in%ff,]
-# Select by gene type:
-genes2 <- genes2[genes2$gene_type == "proteincoding" | genes2$gene_type == "lncRNA",]
-# Select by annotation level:
-genes2 <- genes2[genes2$level == 1 | genes2$level == 2,]
-# Remove genes with the same ID:
-genes2 <- genes2[!(duplicated(genes2$gene_id) | duplicated(genes2$gene_id, fromLast = TRUE)), ]
-# Order by gene id:
-genes2 <- genes2[order(genes2$gene_id),]
+```{r}
+# Keep only annotation levels 1 and 2:
+geneLevel <- unlist(lapply(gtf$V9, function(x) strsplit(x, ";")[[1]][4]))
+keepGeneLevel <- which(grepl("level 1", geneLevel) | grepl("level 2", geneLevel))
+gtf <- gtf[keepGeneLevel,]
+paste("We have", nrow(gtf), "genes keeping only annotation levels 1 and 2.")
 ```
 
-
-
-
-
-
-### Convert to DGElist object and remove rows with consistent 0 or low counts
 ```{r}
-dge <- DGEList(counts=count.matrix)
+# Add gene_id and gene_name to the annotation file:
+gtf <- gtf[,c("V4","V5","V9")]
+
+gtf$gene_id <- str_split_fixed(gtf$V9,";",7)[,1]
+gtf$gene_id <- gsub("gene_id ","",gtf$gene_id)
+gtf$gene_id <- gsub("[^[:alnum:].]", "", gtf$gene_id)
+
+gtf$gene_name <- str_split_fixed(gtf$V9,";",7)[,3]
+gtf$gene_name <- gsub("gene_name","",gtf$gene_name)
+gtf$gene_name <- gsub("[^A-Za-z0-9]","",gtf$gene_name)
+
+# Add length columns to the annotation file (will be used for TPM calculation):
+gtf$length <- gtf$V5-gtf$V4
+
+# Remove old columns:
+gtf <- gtf[,-c("V4","V5","V9")]
+
+# Use the annotation file to select among the quantified genes:
+count.matrix2 <- count.matrix[rownames(count.matrix) %in% gtf$gene_id,]
+
+paste("From the", nrow(gtf), "filtered genes present in the annotation file,", nrow(count.matrix2), "have been quantified")
+
+paste(nrow(count.matrix) - nrow(count.matrix2), "genes were quantified but are removed due to filtering in the annotation file")
+
+if (sum(duplicated(rownames(count.matrix2))) != 0) {warning("There are duplicates gene ids!!")}
+```
+
+### Convert to DGElist object and remove rows with consistent 0 or low counts:
+
+```{r}
+dge <- DGEList(counts=count.matrix2)
 
 # Set "Control" to be the first level
-group_list <- factor(x = c(rep("Case",4), rep("Control",4)),
+group_list <- factor(x = c(rep("Case",5), rep("Control",4)),
               levels=c("Control","Case"))
 
-design <- model.matrix(~group_list) 
+design <- model.matrix(~group_list)
 
 keep <- filterByExpr(dge, design)
 dge <- dge[keep,,keep.lib.sizes=FALSE]
 
-paste("We keep", sum(keep), "genes")
+paste("We exclude", sum(!keep), "genes and we have", sum(keep), "genes that pass all our filters")
 ```
 
-### Apply TMM Normalization
+### Apply TMM Normalization:
 
 ```{r}
-dge <- calcNormFactors(dge)
+dge <- calcNormFactors(dge, method = "TMM")
+max(dge$samples$lib.size)/min(dge$samples$lib.size)
 ```
 
-### Using normalized values
+```{r}
+dgeTpmAdjCpm <- cpm(dge)
+```
+
+### Perform PCA:
+
+```{r}
+my_pca <- prcomp(t(dgeTpmAdjCpm), center = TRUE,scale. = TRUE)
+summaryPca <- summary(my_pca)
+
+saveRDS(my_pca,"/home/gerard/PCA.rds")
+```
+
+```{r}
+# To run it locally:
+my_pca <- readRDS("C://Users/Gerard/Downloads/PCA.rds")
+```
+
+```{r, include=TRUE}
+# Cumulative variance plot:
+plot(cumsum(my_pca$sdev^2 / sum(my_pca$sdev^2)), type="b", ylab = "Cummulative proportion of Variance Explained")
+```
+
+```{r, include=TRUE}
+barplot((my_pca$sdev^2 / sum(my_pca$sdev^2))[1:20], names.arg = 1:20,  
+        xlab = "PC #", ylab = "Amount of explained variance per PC",
+        ylim=c(0,0.5), las=2, cex.names=.8)
+```
+
+Correlation of the most important PCs (PC1-4) with our technical:
+
+-   FC
+
+-   Date
+
+-   Batch
+
+-   GC_Mean
+
+-   RIN
+
+-   DV200
+
+-   Qubit
+
+and biological covariates:
+
+-   Age
+
+-   Sex
+
+
+```{r}
+#tec <- read.xlsx("/home/gerard/RNAseq/Technical_CompleteV2.xlsx")
+tec <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/Technical_CompleteV2.xlsx")
+names(tec)
+```
+
+
+```{r}
+ss <- c("22ID00809","22ID00810","22ID00811","22ID00812","22ID00813","22ID00906","22ID00907","22ID00908","22ID00909")
+tec2 <- tec[tec$Seq_ID %in% ss,]
+```
+
+
+```{r}
+boxplotMatrix <- cbind(tec2, my_pca$x[,1:4])
+
+boxplotMatrixMelt <- data.frame(reshape2::melt(boxplotMatrix[,c(covariate, paste0("PC", 1:4))], id.vars=covariate))
+
+colnames(boxplotMatrixMelt)[1] <- "covariate"
+```
+
+
+
+
+
+
+### Using normalized values:
 
 ```{r}
 v.norm <- voom(dge, design, plot=TRUE)
@@ -148,7 +212,8 @@ tempOutput.norm <- topTable(
     coef='group_listCase')
 ```
 
-### Using matrix of counts directly
+
+### Using matrix of counts directly:
 
 ```{r}
 v.counts <- voom(count.matrix, design, plot=TRUE)
@@ -161,7 +226,7 @@ tempOutput.counts <- topTable(
     coef='group_listCase')
 ```
 
-### Using matrix of counts and normalize
+### Using matrix of counts and normalize:
 
 ```{r}
 v <- voom(count.matrix,design,normalize="quantile", plot = T)
