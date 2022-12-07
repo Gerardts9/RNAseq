@@ -45,7 +45,6 @@ count.matrix <- count.matrix %>% remove_rownames %>% column_to_rownames(var="gen
 ```{r}
 # Load annotation file:
 gtf <- fread("C://Users/Gerard/Downloads/gencode.v26.annotation.gtf.gz", header = F, nThread = 6)
-gtf <- fread("/home/gerard/RNAseq/GTEx/gencode.v26.annotation.gtf.gz", header = F, nThread = 6)
 gtf <- gtf[gtf$V3 == "gene",]
 ```
 

@@ -1,84 +1,19 @@
 ---
-title: "RNAseq_AAA_Normalization"
+title: "RNAseq AAA Normalization"
 author: "Gerard Temprano Sagrera"
-date: "25/10/2022"
+date: "07/12/2022"
 output: html_document
 ---
 
-Load libraries
-
 ```{r, warning=FALSE, message=FALSE, echo=FALSE}
-library(edgeR);library(openxlsx);library(data.table);library(DESeq2);library(tximport);library(stringr);library(ggbiplot);library(dplyr);library(knitr)
+library(edgeR);library(openxlsx);library(data.table);library(DESeq2);library(tximport);library(stringr);library(ggbiplot);library(dplyr);library(knitr);library(gridExtra)
 ```
 
-Load and prepare annotation file
 
-Filter genes: 1. Select "protein coding" and "lnRNA" genes. 2. Select annotation levels "1" and "2".
+Apply TPM transformation to salmon counts:
 
 ```{r}
-gtf <- fread("C://Users/Gerard/Downloads/gencode.v34.annotation.gtf.gz", header = F, nThread = 6)
-gtf <- gtf[gtf$V3 == "gene",]
-```
-
-```{r, warning=FALSE}
-genes <- gtf[,c("V4","V5","V9")]
-
-genes$gene_id <- str_split_fixed(genes$V9,";",7)[,1]
-genes$gene_id <- gsub("gene_id","",genes$gene_id)
-genes$gene_id <- gsub("\\..*","",genes$gene_id)
-genes$gene_id <- gsub("[^A-Za-z0-9]","",genes$gene_id)
-
-genes$gene_type <- str_split_fixed(genes$V9,";",7)[,2]
-genes$gene_type <- gsub("gene_type","",genes$gene_type)
-genes$gene_type <- gsub("[^A-Za-z0-9]","",genes$gene_type)
-
-genes$gene_name <- str_split_fixed(genes$V9,";",7)[,3]
-genes$gene_name <- gsub("gene_name","",genes$gene_name)
-genes$gene_name <- gsub("[^A-Za-z0-9]","",genes$gene_name)
-
-genes$level <- str_split_fixed(genes$V9,";",7)[,4]
-genes$level <- gsub("level","",genes$level)
-genes$level <- gsub("[^A-Za-z0-9]","",genes$level)
-
-genes$length <- genes$V5-genes$V4
-
-genes <- genes[,-c("V4","V5","V9")]
-
-merged <- readRDS("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/salmon.merged.gene_counts.rds")
-
-ff <- rownames(merged)
-
-# Select quantified genes:
-genes2 <- genes[genes$gene_id%in%ff,]
-# Select by gene type:
-genes2 <- genes2[genes2$gene_type == "proteincoding" | genes2$gene_type == "lncRNA",]
-# Select by annotation level:
-genes2 <- genes2[genes2$level == 1 | genes2$level == 2,]
-# Remove genes with the same ID:
-genes2 <- genes2[!(duplicated(genes2$gene_id) | duplicated(genes2$gene_id, fromLast = TRUE)), ]
-# Order by gene id:
-genes2 <- genes2[order(genes2$gene_id),]
-```
-
-Save salmon counts and length of the genes
-
-```{r}
-counts <- assays(merged)$counts
-# Select by annotation and type:
-counts <- counts[rownames(counts)%in%genes2$gene_id,]
-colnames(counts) <- gsub("_R1","",colnames(counts))
-counts <- counts[order(rownames(counts)),]
-dim(counts)
-
-identical(genes2$gene_id,rownames(counts))
-
-#fwrite(genes2[,c("gene_id","length")], "C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Lengths.txt", sep = "\t")
-#fwrite(counts, "C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.salmon.txt", sep = "\t", row.names = T)
-```
-
-Apply TPM transformation to salmon counts
-
-```{r}
+# Load previously prepared salmon read counts:
 counts <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.salmon.txt")
 lengths <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Lengths.txt")
 lengths <- lengths$length/1000
@@ -94,84 +29,6 @@ r_tpm <- function(dfr,len)
 }
 
 counts.tpm <- as.data.frame(r_tpm(counts, lengths))
-```
-
-#### Sex identification
-
-Using the raw counts to increase the number of available genes.
-
-```{r}
-xist <- genes2[genes2$gene_name=="XIST",]$gene_id
-counts.sex.f <- counts[rownames(counts)%in%xist,]
-
-y.gene <- c("SRY","ZFY","RPS4Y1","AMELY","TBL1Y","PCDH11Y","TGIF2LY","TSPY1","TSPY2","AZFa","USP9Y","DDX3Y","UTY","TB4Y","AZFb","CYorf15","RPS4Y2","EIF1AY","KDM5D","XKRY","PRY","PRY2","HSFY1","HSFY2","RBMY1A1","AZFc","DAZ1","DAZ2","DAZ3","DAZ4","CDY1","CDY2","VCY1","VCY2")
-
-y.list <- genes2[genes2$gene_name%in%y.gene,]$gene_id
-counts.sex.m <- counts[rownames(counts)%in%y.list,]
-
-# Combine the XIST gene with the mean expression of all Y chromosome genes:
-counts.sex <- rbind(counts.sex.f, data.frame(t(colMeans(counts.sex.m))))
-counts.sex <- as.data.frame(t(counts.sex))
-colnames(counts.sex) <- c("XIST","Chromosome_Y")
-```
-
-```{r}
-counts.sex[rownames(counts.sex) %in% "HSP075",]
-```
-
-Apply log transformation to the sex counts:
-
-```{r}
-counts.sex2 <- log(counts.sex)
-counts.sex2[sapply(counts.sex2, is.infinite)] <- 0
-```
-
-Apply normalization to the sex counts:
-
-```{r}
-counts.sex2 <- as.data.frame(scale(counts.sex2))
-colMeans(counts.sex2)
-apply(counts.sex2, 2, sd)
-counts.sex2$ID <- rownames(counts.sex2)
-```
-
-```{r}
-ggplot(counts.sex2, aes(x = XIST, y = Chromosome_Y, label=ID)) +
-  theme_bw() +
-  geom_text(colour = "lightblue",
-            size = 3) +
-  geom_text(data = counts.sex2[rownames(counts.sex2) %in% c("HSP214","HSP217","HSP075"),],
-             colour = "red",
-             size = 3) +
-  ggtitle("Gender RNAseq") +
-  theme(plot.title = element_text(hjust = 0.5))
-
-#ggsave("C://Users/Gerard/Downloads/Test2.png", height = 10)
-```
-
-### Check the sex between the controls we could not identify
-
-```{r}
-counts.sex[rownames(counts.sex) %in% c("HSP214", "HSP217"),]
-```
-
-```{r}
-counts.sex$Sex.Gene <- ifelse(counts.sex$XIST > 300 | counts.sex$Chromosome_Y < 2, 2, 1 )
-```
-
-```{r}
-sex <- read.xlsx("C://Users/Gerard/Downloads/20221115_Datos Pacientes.xlsx")
-sex <- sex[2:nrow(sex),]
-
-identical(rownames(counts.sex), sex$Muestra)
-counts.sex <- cbind(counts.sex, sex$SEXO)
-counts.sex[!counts.sex$Sex.Gene == counts.sex$`sex$SEXO`,]
-```
-
-```{r}
-counts.sex %>%
-  group_by(sex$SEXO) %>%
-  summarise_at(vars(XIST, Chromosome_Y), list(name = range))
 ```
 
 Use EdgeR to normalize the counts:
@@ -276,12 +133,11 @@ tec <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/Technical_CompleteV
 
 ```{r}
 covariate <- "Case"
-boxplotMatrix <- tec
-boxplotMatrix <- cbind(boxplotMatrix, my_pca$x[,1:10])
+boxplotMatrix <- cbind(tec, my_pca$x[,1:10])
 boxplotMatrixMelt <- data.frame(reshape2::melt(boxplotMatrix[,c(covariate, paste0("PC", 1:4))], id.vars=covariate))
 colnames(boxplotMatrixMelt)[1] <- "covariate"
 
-dfPvalue <- as.data.frame(matrix(unlist(lapply(paste0("PC", 1:10), function(x) cor.test(boxplotMatrix[,x],as.numeric(boxplotMatrix[,covariate]), method="spearman")[c(3,4)])), ncol=2, byrow = T))
+dfPvalue <- as.data.frame(matrix(unlist(lapply(paste0("PC", 1:10), function(x) cor.test(boxplotMatrix[,x],as.numeric(boxplotMatrix[,covariate]), method="spearman", exact = FALSE)[c(3,4)])), ncol=2, byrow = T))
 
 colnames(dfPvalue) <- c("pvalue", "correlation")
 rownames(dfPvalue) <- paste0("PC", 1:10)
@@ -310,8 +166,7 @@ Correlations <- cbind(Correlations, dfPvalue[,-1])
 ```{r}
 covariate <- "Date"
 
-boxplotMatrix <- tec
-boxplotMatrix <- cbind(boxplotMatrix, my_pca$x[,1:10])
+boxplotMatrix <- cbind(tec, my_pca$x[,1:10])
 boxplotMatrixMelt <- data.frame(reshape2::melt(boxplotMatrix[,c(covariate, paste0("PC", 1:4))], id.vars=covariate))
 colnames(boxplotMatrixMelt)[1] <- "covariate"
 
@@ -342,8 +197,7 @@ Correlations <- cbind(Correlations, dfPvalue[,-1])
 ```{r}
 covariate <- "FC"
 
-boxplotMatrix <- tec
-boxplotMatrix <- cbind(boxplotMatrix, my_pca$x[,1:10])
+boxplotMatrix <- cbind(tec, my_pca$x[,1:10])
 boxplotMatrixMelt <- data.frame(reshape2::melt(boxplotMatrix[,c(covariate, paste0("PC", 1:4))], id.vars=covariate))
 colnames(boxplotMatrixMelt)[1] <- "covariate"
 
@@ -374,8 +228,7 @@ Correlations <- cbind(Correlations, dfPvalue[,-1])
 ```{r}
 covariate <- "Batch"
 
-boxplotMatrix <- tec
-boxplotMatrix <- cbind(boxplotMatrix, my_pca$x[,1:10])
+boxplotMatrix <- cbind(tec, my_pca$x[,1:10])
 boxplotMatrixMelt <- data.frame(reshape2::melt(boxplotMatrix[,c(covariate, paste0("PC", 1:4))], id.vars=covariate))
 colnames(boxplotMatrixMelt)[1] <- "covariate"
 
@@ -406,8 +259,7 @@ Correlations <- cbind(Correlations, dfPvalue[,-1])
 ```{r}
 covariate <- "GC_Mean"
 
-boxplotMatrix <- tec
-boxplotMatrix <- cbind(boxplotMatrix, my_pca$x[,1:10])
+boxplotMatrix <- cbind(tec, my_pca$x[,1:10])
 boxplotMatrixMelt <- data.frame(reshape2::melt(boxplotMatrix[,c(covariate, paste0("PC", 1:4))], id.vars=covariate))
 colnames(boxplotMatrixMelt)[1] <- "covariate"
 
@@ -440,8 +292,7 @@ Correlations <- cbind(Correlations, dfPvalue[,-1])
 ```{r}
 covariate <- "RIN"
 
-boxplotMatrix <- tec
-boxplotMatrix <- cbind(boxplotMatrix, my_pca$x[,1:10])
+boxplotMatrix <- cbind(tec, my_pca$x[,1:10])
 boxplotMatrixMelt <- data.frame(reshape2::melt(boxplotMatrix[,c(covariate, paste0("PC", 1:4))], id.vars=covariate))
 colnames(boxplotMatrixMelt)[1] <- "covariate"
 
