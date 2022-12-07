@@ -1,0 +1,130 @@
+---
+title: "RNAseq AAA Sex Identification"
+author: "Gerard Temprano Sagrera"
+date: "2022-12-07"
+output: html_document
+---
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+library(data.table);library(stringr);library(openxlsx);library(stringr);library(ggbiplot);library(dplyr);library(knitr);library(gridExtra)
+```
+
+
+#### Sex identification
+
+Apply TPM transformation to salmon counts:
+
+```{r}
+# Load previously prepared salmon read counts:
+genes2 <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Annotation/gencode.v34.annotation.fixed.gtf.gz")
+counts <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.salmon.txt")
+lengths <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Lengths.txt")
+lengths <- lengths$length/1000
+rnames <- counts$V1
+counts <- counts[,-1]
+rownames(counts) <- rnames
+
+r_tpm <- function(dfr,len)
+{
+  dfr1 <- sweep(dfr,1,len,`/`)
+  sc.f <- colSums(dfr1)/(10^6)
+  return(sweep(dfr1,2,sc.f,`/`))
+}
+
+counts.tpm <- as.data.frame(r_tpm(counts, lengths))
+```
+
+```{r}
+gtf <- fread("C://Users/Gerard/Downloads/gencode.v34.annotation.gtf.gz", header = F, nThread = 6)
+gtf <- gtf[gtf$V3 == "gene",]
+```
+
+```{r}
+# I am using the raw counts to increase the number of available genes:
+xist <- genes2[genes2$gene_name=="XIST",]$gene_id
+counts.sex.f <- counts[rownames(counts)%in%xist,]
+
+y.gene <- c("SRY","ZFY","RPS4Y1","AMELY","TBL1Y","PCDH11Y","TGIF2LY","TSPY1","TSPY2","AZFa","USP9Y","DDX3Y","UTY","TB4Y","AZFb","CYorf15","RPS4Y2","EIF1AY","KDM5D","XKRY","PRY","PRY2","HSFY1","HSFY2","RBMY1A1","AZFc","DAZ1","DAZ2","DAZ3","DAZ4","CDY1","CDY2","VCY1","VCY2")
+
+y.list <- genes2[genes2$gene_name%in%y.gene,]$gene_id
+counts.sex.m <- counts[rownames(counts)%in%y.list,]
+
+# Combine the XIST gene with the mean expression of all Y chromosome genes:
+counts.sex <- rbind(counts.sex.f, data.frame(t(colMeans(counts.sex.m))))
+counts.sex <- as.data.frame(t(counts.sex))
+colnames(counts.sex) <- c("XIST","Chromosome_Y")
+```
+
+
+Apply log transformation to the sex counts:
+
+```{r}
+counts.sex.log <- log(counts.sex)
+counts.sex.log[sapply(counts.sex.log, is.infinite)] <- 0
+```
+
+Apply normalization to the sex counts:
+
+```{r}
+counts.sex.log.scaled <- as.data.frame(scale(counts.sex.log))
+colMeans(counts.sex.log.scaled)
+apply(counts.sex.log.scaled, 2, sd)
+counts.sex.log.scaled$ID <- rownames(counts.sex.log.scaled)
+```
+
+```{r}
+sex <- read.xlsx("C://Users/Gerard/Downloads/20221115_Datos Pacientes.xlsx")
+sex <- sex[2:nrow(sex),]
+counts.sex.log.scaled <- merge(counts.sex.log.scaled, sex[,c("Muestra","SEXO")], by.x = "ID", by.y = "Muestra")
+names(counts.sex.log.scaled)[names(counts.sex.log.scaled) == "SEXO"] <- "Pheno.Sex"
+```
+
+
+```{r, fig.show="hold", out.width="50%"}
+Male <- ggplot()  +
+  theme_bw() +
+  geom_text(data = counts.sex.log.scaled, aes(x=XIST, y=Chromosome_Y, label=ID, color=Pheno.Sex)) +
+  ggtitle("Gender RNAseq") +
+  scale_color_manual(labels=c("Male", "Female"), values=c("lightblue", "red")) +
+  theme(plot.title = element_text(hjust = 0.5))
+
+Female <- ggplot()  +
+  theme_bw() +
+  geom_text(data = counts.sex.log.scaled, aes(x=XIST, y=Chromosome_Y, label=ID, color=Pheno.Sex)) +
+  ggtitle("Gender RNAseq") +
+  scale_color_manual(labels=c("Male", "Female"), values=c("red", "lightblue")) +
+  theme(plot.title = element_text(hjust = 0.5))
+
+Male
+Female
+```
+
+
+```{r}
+g <- arrangeGrob(Male, Female, nrow = 2)
+ggsave(file="C://Users/Gerard/Downloads/Sex_Identification.png", g)
+```
+
+### Check the sex between the controls we could not identify:
+
+```{r}
+counts.sex[rownames(counts.sex) %in% c("HSP214", "HSP217"),]
+```
+We determine that HSP214 is the Male and HSP217 is the Female.
+
+### Check the values of the mismatched sample:
+
+```{r}
+counts.sex[rownames(counts.sex) %in% "HSP075",]
+```
+It clearly looks like a Male, although it is classified as a Female in the biological information (check).
+
+Create column of sex determined by the expression (Seq.Sex):
+```{r}
+counts.sex.log.scaled$Seq.Sex <- ifelse(counts.sex.log.scaled$XIST > 1 | counts.sex.log.scaled$Chromosome_Y < -0.5, 2, 1 )
+```
+
+Mismatched samples:
+```{r}
+counts.sex.log.scaled[!counts.sex.log.scaled$Pheno.Sex == counts.sex.log.scaled$Seq.Sex,]
+```
+
