@@ -1,0 +1,93 @@
+---
+title: "RNAseq AAA Prepare Annotations Files"
+author: "Gerard Temprano Sagrera"
+date: "2022-12-07"
+output: html_document
+---
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+library(openxlsx);library(data.table);library(stringr);library(dplyr)
+```
+
+
+### Load, prepare and save v34 annotation file:
+
+```{r}
+ann <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Annotation/gencode.v34.annotation.gtf.gz", header = F, nThread = 6)
+# Only genes:
+ann <- ann[ann$V3 == "gene",]
+```
+
+Filtering: 
+
+* 1. Select "protein coding" and "lnRNA" genes. 
+
+* 2. Select annotation levels "1" and "2".
+
+```{r, message=FALSE}
+# Keep only relevant columns:
+genes <- ann[,c("V4","V5","V9")]
+
+# Obtain relevant information from V9 column (gene id, gene type, gene name, annotation level and length):
+genes$gene_id <- str_split_fixed(genes$V9,";",7)[,1]
+genes$gene_id <- gsub("gene_id","",genes$gene_id)
+genes$gene_id <- gsub("\\..*","",genes$gene_id)
+genes$gene_id <- gsub("[^A-Za-z0-9]","",genes$gene_id)
+
+genes$gene_type <- str_split_fixed(genes$V9,";",7)[,2]
+genes$gene_type <- gsub("gene_type","",genes$gene_type)
+genes$gene_type <- gsub("[^A-Za-z0-9]","",genes$gene_type)
+
+genes$gene_name <- str_split_fixed(genes$V9,";",7)[,3]
+genes$gene_name <- gsub("gene_name","",genes$gene_name)
+genes$gene_name <- gsub("[^A-Za-z0-9]","",genes$gene_name)
+
+genes$level <- str_split_fixed(genes$V9,";",7)[,4]
+genes$level <- gsub("level","",genes$level)
+genes$level <- gsub("[^A-Za-z0-9]","",genes$level)
+
+genes$length <- genes$V5-genes$V4
+
+# Remove old columns:
+genes <- genes[,-c("V4","V5","V9")]
+
+# Load salmon counts:
+merged <- readRDS("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/salmon.merged.gene_counts.rds")
+
+# Quantified genes:
+ff <- rownames(merged)
+
+# Select quantified genes:
+genes2 <- genes[genes$gene_id%in%ff,]
+# Select by gene type:
+genes2 <- genes2[genes2$gene_type == "proteincoding" | genes2$gene_type == "lncRNA",]
+# Select by annotation level:
+genes2 <- genes2[genes2$level == 1 | genes2$level == 2,]
+# Remove genes with the same ID:
+genes2 <- genes2[!(duplicated(genes2$gene_id) | duplicated(genes2$gene_id, fromLast = TRUE)), ]
+# Order by gene id:
+genes2 <- genes2[order(genes2$gene_id),]
+```
+
+Save salmon counts and length of the genes:
+
+```{r}
+counts <- assays(merged)$counts
+# Select by annotation and type:
+counts <- counts[rownames(counts)%in%genes2$gene_id,]
+colnames(counts) <- gsub("_R1","",colnames(counts))
+counts <- counts[order(rownames(counts)),]
+dim(counts)
+
+identical(genes2$gene_id,rownames(counts))
+
+#fwrite(genes2[,c("gene_id","length")], "C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Lengths.txt", sep = "\t")
+#fwrite(counts, "C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.salmon.txt", sep = "\t", row.names = T)
+#fwrite(genes2, "C://Users/Gerard/Desktop/AAA/RNAseq/Annotation/gencode.v34.annotation.fixed.gtf.gz", sep = "\t")
+```
+
+
+
+
+
+
