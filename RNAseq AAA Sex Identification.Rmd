@@ -15,7 +15,7 @@ Apply TPM transformation to salmon counts:
 
 ```{r}
 # Load previously prepared salmon read counts:
-genes2 <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Annotation/gencode.v34.annotation.fixed.gtf.gz")
+genes <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Annotation/gencode.v34.annotation.fixed.gtf.gz")
 counts <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.salmon.txt")
 lengths <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Lengths.txt")
 lengths <- lengths$length/1000
@@ -36,12 +36,12 @@ counts.tpm <- as.data.frame(r_tpm(counts, lengths))
 
 ```{r}
 # I am using the raw counts to increase the number of available genes:
-xist <- genes2[genes2$gene_name=="XIST",]$gene_id
+xist <- genes[genes$gene_name=="XIST",]$gene_id
 counts.sex.f <- counts[rownames(counts)%in%xist,]
 
 y.gene <- c("SRY","ZFY","RPS4Y1","AMELY","TBL1Y","PCDH11Y","TGIF2LY","TSPY1","TSPY2","AZFa","USP9Y","DDX3Y","UTY","TB4Y","AZFb","CYorf15","RPS4Y2","EIF1AY","KDM5D","XKRY","PRY","PRY2","HSFY1","HSFY2","RBMY1A1","AZFc","DAZ1","DAZ2","DAZ3","DAZ4","CDY1","CDY2","VCY1","VCY2")
 
-y.list <- genes2[genes2$gene_name%in%y.gene,]$gene_id
+y.list <- genes[genes$gene_name%in%y.gene,]$gene_id
 counts.sex.m <- counts[rownames(counts)%in%y.list,]
 
 # Combine the XIST gene with the mean expression of all Y chromosome genes:
