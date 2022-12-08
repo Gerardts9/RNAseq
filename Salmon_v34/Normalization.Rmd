@@ -9,8 +9,7 @@ output: html_document
 library(edgeR);library(openxlsx);library(data.table);library(DESeq2);library(tximport);library(stringr);library(ggbiplot);library(dplyr);library(knitr);library(gridExtra)
 ```
 
-
-Apply TPM transformation to salmon counts:
+### Apply TPM transformation to salmon counts:
 
 ```{r}
 # Load previously prepared salmon read counts:
@@ -31,7 +30,7 @@ r_tpm <- function(dfr,len)
 counts.tpm <- as.data.frame(r_tpm(counts, lengths))
 ```
 
-Use EdgeR to normalize the counts:
+### Use EdgeR to normalize the counts:
 
 ```{r, echo = FALSE}
 #cc <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Techinc_1.xlsx")
@@ -46,7 +45,7 @@ Use EdgeR to normalize the counts:
 #y2 <- calcNormFactors(y)
 ```
 
-Use deseq2 to normalize the counts:
+### Use deseq2 to normalize the counts:
 
 ```{r, echo = FALSE}
 #cc <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Techinc_1.xlsx")
@@ -68,7 +67,7 @@ Use deseq2 to normalize the counts:
 #counts(y)
 ```
 
-Perform PCA, removing genes that do not have variability
+### Perform PCA, removing genes that do not have variability:
 
 ```{r}
 counts.tpm <- as.data.frame(r_tpm(counts, lengths))
@@ -87,7 +86,7 @@ counts_var <- counts.tpm[,apply(counts.tpm, 2, var, na.rm=TRUE) != 0]
 my_pca <- prcomp(counts_var, center = T, scale. = T)
 ```
 
-PCA Plots
+### PCA Plots:
 
 ```{r, include=TRUE}
 plot(my_pca, main = "Variance Explained")
@@ -97,7 +96,7 @@ plot(my_pca, main = "Variance Explained")
 plot(cumsum(my_pca$sdev^2 / sum(my_pca$sdev^2))[1:10], type="b", ylab = "Cummulative proportion of Variance Explained")
 ```
 
-PCA Plot
+### PCA Plot:
 
 ```{r, include=TRUE}
 ggbiplot(my_pca, labels = rownames(counts_var), groups = cc, var.axes = F, obs.scale = 1, var.scale = 1) +
@@ -105,7 +104,7 @@ ggbiplot(my_pca, labels = rownames(counts_var), groups = cc, var.axes = F, obs.s
   theme(legend.direction = "horizontal", legend.position = "top")
 ```
 
-Plot the histograms of the 9 smallest PC1
+### Plot the histograms of the 9 smallest PC1:
 
 ```{r}
 par(mfrow = c(3, 3))
@@ -113,7 +112,7 @@ pca1.min <- head(order(predict(my_pca)[, 1]), 9)
 for (i in 1:9) hist(as.numeric(counts_var[pca1.min[i], ]), main = paste0("Number ", i), xlab = "Gene expression")
 ```
 
-Plot the histograms of the 9 largest PC1
+### Plot the histograms of the 9 largest PC1:
 
 ```{r}
 par(mfrow = c(3, 3))
@@ -121,7 +120,7 @@ pca1.max <- head(order(predict(my_pca)[, 1], decreasing = T), 9)
 for (i in 1:9) hist(as.numeric(counts_var[pca1.max[i], ]), main = paste0("Number ", i), xlab = "Gene expression")
 ```
 
-Technical batches names
+### Technical batches names:
 
 ```{r, echo = FALSE}
 tec <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/Technical_CompleteV2.xlsx")
@@ -129,7 +128,7 @@ tec <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/Technical_CompleteV
 
 ### Covariates against PCA:
 
-### Case
+#### Case
 
 ```{r}
 covariate <- "Case"
@@ -161,7 +160,7 @@ Correlations <- c()
 Correlations <- cbind(Correlations, dfPvalue[,-1])
 ```
 
-### Date:
+#### Date:
 
 ```{r}
 covariate <- "Date"
@@ -192,7 +191,7 @@ dfPvalue$covariate <- ifelse(dfPvalue$pvalue < 0.05, paste0(dfPvalue$covariate, 
 Correlations <- cbind(Correlations, dfPvalue[,-1])
 ```
 
-### FC:
+#### FC:
 
 ```{r}
 covariate <- "FC"
@@ -223,7 +222,7 @@ dfPvalue$covariate <- ifelse(dfPvalue$pvalue < 0.05, paste0(dfPvalue$covariate, 
 Correlations <- cbind(Correlations, dfPvalue[,-1])
 ```
 
-### Batch:
+#### Batch:
 
 ```{r}
 covariate <- "Batch"
@@ -254,7 +253,7 @@ dfPvalue$covariate <- ifelse(dfPvalue$pvalue < 0.05, paste0(dfPvalue$covariate, 
 Correlations <- cbind(Correlations, dfPvalue[,-1])
 ```
 
-### GC_Mean:
+#### GC_Mean:
 
 ```{r}
 covariate <- "GC_Mean"
@@ -285,9 +284,7 @@ dfPvalue$covariate <- ifelse(dfPvalue$pvalue < 0.05, paste0(dfPvalue$covariate, 
 Correlations <- cbind(Correlations, dfPvalue[,-1])
 ```
 
-
-
-### RIN:
+#### RIN:
 
 ```{r}
 covariate <- "RIN"
@@ -318,16 +315,14 @@ dfPvalue$covariate <- ifelse(dfPvalue$pvalue < 0.05, paste0(dfPvalue$covariate, 
 Correlations <- cbind(Correlations, dfPvalue[,-1])
 ```
 
+#### Prepare and save Correlations table:
 
-### Prepare and save Correlations table:
 ```{r}
 rownames(Correlations) <- paste0("PC",1:10)
 colnames(Correlations) <- c("Case","Date","FC","Batch","GC_Mean","RIN")
 
 write.xlsx(as.data.frame(Correlations), "C://Users/Gerard/Desktop/AAA/RNAseq/Correlation.xlsx", sep = "\t", rowNames = T)
 ```
-
-
 
 ```{r}
 table(tec$Batch, tec$Date)
