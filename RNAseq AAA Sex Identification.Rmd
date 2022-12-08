@@ -9,7 +9,7 @@ library(data.table);library(stringr);library(openxlsx);library(stringr);library(
 ```
 
 
-#### Sex identification
+### Sex identification
 
 Apply TPM transformation to salmon counts:
 
@@ -33,10 +33,6 @@ r_tpm <- function(dfr,len)
 counts.tpm <- as.data.frame(r_tpm(counts, lengths))
 ```
 
-```{r}
-gtf <- fread("C://Users/Gerard/Downloads/gencode.v34.annotation.gtf.gz", header = F, nThread = 6)
-gtf <- gtf[gtf$V3 == "gene",]
-```
 
 ```{r}
 # I am using the raw counts to increase the number of available genes:
@@ -82,14 +78,14 @@ names(counts.sex.log.scaled)[names(counts.sex.log.scaled) == "SEXO"] <- "Pheno.S
 ```{r, fig.show="hold", out.width="50%"}
 Male <- ggplot()  +
   theme_bw() +
-  geom_text(data = counts.sex.log.scaled, aes(x=XIST, y=Chromosome_Y, label=ID, color=Pheno.Sex)) +
+  geom_point(data = counts.sex.log.scaled, aes(x=XIST, y=Chromosome_Y, label=ID, color=Pheno.Sex)) +
   ggtitle("Gender RNAseq") +
   scale_color_manual(labels=c("Male", "Female"), values=c("lightblue", "red")) +
   theme(plot.title = element_text(hjust = 0.5))
 
 Female <- ggplot()  +
   theme_bw() +
-  geom_text(data = counts.sex.log.scaled, aes(x=XIST, y=Chromosome_Y, label=ID, color=Pheno.Sex)) +
+  geom_point(data = counts.sex.log.scaled, aes(x=XIST, y=Chromosome_Y, label=ID, color=Pheno.Sex)) +
   ggtitle("Gender RNAseq") +
   scale_color_manual(labels=c("Male", "Female"), values=c("red", "lightblue")) +
   theme(plot.title = element_text(hjust = 0.5))
@@ -100,8 +96,8 @@ Female
 
 
 ```{r}
-g <- arrangeGrob(Male, Female, nrow = 2)
-ggsave(file="C://Users/Gerard/Downloads/Sex_Identification.png", g)
+ggsave(file="C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Sex_Identification1.png", Male)
+ggsave(file="C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Sex_Identification2.png", Female)
 ```
 
 ### Check the sex between the controls we could not identify:
