@@ -10,7 +10,7 @@ library(limma);library(data.table);library(edgeR);library(tidyverse);library(ope
 ```
 
 ```{r}
-limmaUsersGuide()
+#limmaUsersGuide()
 ```
 
 ### Make a Count Matrix from the RSEM results:
@@ -40,56 +40,13 @@ if (ncol(count.matrix) != 142) {warning("Not all samples have been analyzed")}
 count.matrix <- count.matrix %>% remove_rownames %>% column_to_rownames(var="gene_id")
 ```
 
-### Filter genes based on annotation in the annotation file:
 
 ```{r}
-# Load annotation file:
-gtf <- fread("C://Users/Gerard/Downloads/gencode.v26.annotation.gtf.gz", header = F, nThread = 6)
-gtf <- gtf[gtf$V3 == "gene",]
-```
-
-```{r}
-paste("We have", nrow(gtf), "genes before filtering")
-```
-
-```{r}
-# Keep only protein coding and lncRNA genes:
-geneType <- unlist(lapply(gtf$V9, function(x) strsplit(x, ";")[[1]][2]))
-keepGeneType <- which(grepl("*protein_coding*", geneType) | grepl("*lincRNA*", geneType))
-gtf <- gtf[keepGeneType,]
-paste("We have", nrow(gtf), "genes keeping only protein_coding and lincRNA annotations.")
-```
-
-```{r}
-# Keep only annotation levels 1 and 2:
-geneLevel <- unlist(lapply(gtf$V9, function(x) strsplit(x, ";")[[1]][4]))
-keepGeneLevel <- which(grepl("level 1", geneLevel) | grepl("level 2", geneLevel))
-gtf <- gtf[keepGeneLevel,]
-paste("We have", nrow(gtf), "genes keeping only annotation levels 1 and 2.")
-```
-
-```{r}
-# Add gene_id and gene_name to the annotation file:
-gtf <- gtf[,c("V4","V5","V9")]
-
-gtf$gene_id <- str_split_fixed(gtf$V9,";",7)[,1]
-gtf$gene_id <- gsub("gene_id ","",gtf$gene_id)
-gtf$gene_id <- gsub("[^[:alnum:].]", "", gtf$gene_id)
-
-gtf$gene_name <- str_split_fixed(gtf$V9,";",7)[,3]
-gtf$gene_name <- gsub("gene_name","",gtf$gene_name)
-gtf$gene_name <- gsub("[^A-Za-z0-9]","",gtf$gene_name)
-
-# Add length columns to the annotation file (will be used for TPM calculation):
-gtf$length <- gtf$V5-gtf$V4
-
-# Remove old columns:
-gtf <- gtf[,-c("V4","V5","V9")]
-
 # Use the annotation file to select among the quantified genes:
-count.matrix2 <- count.matrix[rownames(count.matrix) %in% gtf$gene_id,]
+ann <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Annotation/gencode.v26.annotation.fixed.gtf.gz")
+count.matrix2 <- count.matrix[rownames(count.matrix) %in% ann$gene_id,]
 
-paste("From the", nrow(gtf), "filtered genes present in the annotation file,", nrow(count.matrix2), "have been quantified")
+paste("From the", nrow(ann), "filtered genes present in the annotation file,", nrow(count.matrix2), "have been quantified")
 
 paste(nrow(count.matrix) - nrow(count.matrix2), "genes were quantified but are removed due to filtering in the annotation file")
 
