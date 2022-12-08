@@ -1,24 +1,25 @@
 ---
-title: "AAA RNAseq"
+title: "Prepare Group Presentation"
 author: "Gerard Temprano Sagrera"
 date: 25/10/2022
 output: "html_document"
 ---
 
-Load packages
 ```{r, warning=FALSE, message=FALSE, echo = FALSE}
 library(openxlsx);library(data.table);library(stringr);library(ggbiplot)
 ```
 
 
-First technical table, only with cases and controls
+### First technical table, only with cases and controls:
+
 ```{r}
 tec1 <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Techinc_1.xlsx")
 nrow(tec1) # 141 Samples.
 table(tec1$`Case/Control`) # 44 Controls / 97 Cases
 ```
 
-Check all the samples have been sequenced
+### Check all the samples have been sequenced:
+
 ```{r}
 samples <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Correspondencias.xlsx")
 
@@ -30,7 +31,8 @@ length(intersect(samples$SantPau_ID, mm$Nombre.de.la.muestra))
 ```
 
 
-Analyze table obtained from the 'multiQC'
+### Analyze table obtained from the 'multiQC':
+
 ```{r}
 samples <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Samples_Table.xlsx")
 samples <- samples[!is.na(samples$M.Reads),] # 141 Samples sequenced.
@@ -45,7 +47,8 @@ median(samples$M.Aligned.STAR, na.rm = T)
 ```
 
 
-Density plots
+### Density plots:
+
 ```{r}
 p <- density(samples$M.Aligned.STAR) # Aligned uniquely
 p2 <- density(samples$M.Reads) # Total
@@ -61,45 +64,19 @@ legend("topright",legend=c("Aligned STAR","Total Reads","Mapped Samtools"), col 
 
 
 
-Ranges distribution
+### Ranges distribution:
 ```{r}
 table(cut(samples$M.Aligned.STAR, breaks=c(0,5,10,20,30,max(samples$M.Aligned.STAR))))
 ```
 
 
+### Analyze annotation file:
 
-Analyze annotation file:
 ```{r, message=FALSE, warning=FALSE}
-gtf <- fread("C://Users/Gerard/Downloads/gencode.v34.annotation.gtf.gz", header = F, nThread = 6)
-gtf <- gtf[gtf$V3 == "gene",]
+ann <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Annotation/gencode.v34.annotation.fixed.gtf.gz", header = F, nThread = 6)
 ```
 
-Filter genes: 
-  1. Select "protein coding" and "lnRNA" genes.
-  2. Select annotation levels "1" and "2".
-
 ```{r, warning=FALSE}
-genes <- gtf[,9]
-
-genes$gene_id <- str_split_fixed(genes$V9,";",7)[,1]
-genes$gene_id <- gsub("gene_id","",genes$gene_id)
-genes$gene_id <- gsub("\\..*","",genes$gene_id)
-genes$gene_id <- gsub("[^A-Za-z0-9]","",genes$gene_id)
-
-genes$gene_type <- str_split_fixed(genes$V9,";",7)[,2]
-genes$gene_type <- gsub("gene_type","",genes$gene_type)
-genes$gene_type <- gsub("[^A-Za-z0-9]","",genes$gene_type)
-
-genes$gene_name <- str_split_fixed(genes$V9,";",7)[,3]
-genes$gene_name <- gsub("gene_name","",genes$gene_name)
-genes$gene_name <- gsub("[^A-Za-z0-9]","",genes$gene_name)
-
-genes$level <- str_split_fixed(genes$V9,";",7)[,4]
-genes$level <- gsub("level","",genes$level)
-genes$level <- gsub("[^A-Za-z0-9]","",genes$level)
-
-genes <- genes[,-c("V9")]
-
 merged <- readRDS("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/salmon.merged.gene_counts.rds")
 #merged <- readRDS("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/salmon.merged.gene_counts_length_scaled.rds")
 #merged <- readRDS("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/salmon.merged.transcript_counts.rds")
@@ -116,7 +93,8 @@ genes2 <- genes2[genes2$level == 1 | genes2$level == 2,]
 ```
 
 
-Prepare Techincal table 2
+### Prepare Techincal Table 2:
+
 ```{r}
 #corr <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Correspondencias.xlsx")
 
@@ -167,11 +145,6 @@ Prepare Techincal table 2
 
 #names(corr_def)
 ```
-
-
-
-
-
 
 
 
