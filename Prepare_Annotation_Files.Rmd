@@ -9,6 +9,12 @@ output: html_document
 library(openxlsx);library(data.table);library(stringr);library(dplyr)
 ```
 
+## Filtering: 
+
+* 1. Select "protein coding" and "lnRNA" genes. 
+
+* 2. Select annotation levels "1" and "2".
+
 
 ### Load, prepare and save v34 annotation file (used in the quantification made by the company):
 
@@ -17,12 +23,6 @@ ann <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Annotation/gencode.v34.annotat
 # Only genes:
 ann <- ann[ann$V3 == "gene",]
 ```
-
-Filtering: 
-
-* 1. Select "protein coding" and "lnRNA" genes. 
-
-* 2. Select annotation levels "1" and "2".
 
 ```{r, message=FALSE}
 # Keep only relevant columns:
