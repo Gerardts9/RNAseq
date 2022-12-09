@@ -9,6 +9,77 @@ output: html_document
 library(limma);library(data.table);library(edgeR);library(tidyverse);library(openxlsx)
 ```
 
+### Apply TPM transformation to salmon counts:
+
+```{r}
+# Load previously prepared salmon read counts:
+counts <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.salmon.txt")
+lengths <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Lengths.txt")
+lengths <- lengths$length/1000
+rnames <- counts$V1
+counts <- counts[,-1]
+rownames(counts) <- rnames
+
+r_tpm <- function(dfr,len)
+{
+  dfr1 <- sweep(dfr,1,len,`/`)
+  sc.f <- colSums(dfr1)/(10^6)
+  return(sweep(dfr1,2,sc.f,`/`))
+}
+
+counts.tpm <- as.data.frame(r_tpm(counts, lengths))
+```
+
+
+### Perform PCA, removing genes that do not have variability:
+
+```{r}
+counts.tpm <- as.data.frame(r_tpm(counts, lengths))
+```
+
+```{r}
+tec <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/Technical_CompleteV2.xlsx")
+cc <- tec[,c("Case")]
+cc[cc == 1] <- "Case"
+cc[cc == 0] <- "Control"
+table(tec$Case)
+```
+
+### Convert to DGElist object and remove rows with consistent 0 or low counts:
+
+```{r}
+dge <- DGEList(counts=counts.tpm)
+
+# Set "Control" to be the first level:
+group_list <- factor(x = c(rep("Case",97), rep("Control",44)),
+              levels=c("Control","Case"))
+
+design <- model.matrix(~group_list)
+
+keep <- filterByExpr(dge, design)
+dge <- dge[keep,,keep.lib.sizes=FALSE]
+```
+
+### Apply TMM Normalization:
+
+```{r}
+dge <- calcNormFactors(dge, method = "TMM")
+```
+
+### Apply voom transformation:
+
+```{r}
+v <- voom(dge, design, plot = TRUE)
+```
+
+
+
+
+
+
+
+
+
 
 
 

@@ -105,19 +105,13 @@ dge <- calcNormFactors(dge, method = "TMM")
 ### Apply logCPM transformation to test the effects of covariates:
 
 ```{r}
-dgeTpmAdjCpm <- cpm(geneCountDge)
+dgeTpmAdjCpm <- cpm(dge)
 ```
 
-
-
-
-```{r}
-v <- voom(dge, design, plot = TRUE)
-```
 
 ### Perform PCA:
 ```{r}
-my_pca <- prcomp(t(dge), center = T, scale. = T)
+my_pca <- prcomp(t(dgeTpmAdjCpm), center = T, scale. = T)
 summaryPca <- summary(my_pca)
 ```
 
