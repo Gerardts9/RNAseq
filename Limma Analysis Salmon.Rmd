@@ -1,0 +1,22 @@
+---
+title: "Limma Analysis Salmon"
+author: "Gerard Temprano Sagrera"
+date: "2022-12-09"
+output: html_document
+---
+
+```{r, warning=FALSE, message=FALSE, echo = FALSE}
+library(limma);library(data.table);library(edgeR);library(tidyverse);library(openxlsx)
+```
+
+
+
+
+
+
+
+
+
+
+
+

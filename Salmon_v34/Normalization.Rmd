@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r, warning=FALSE, message=FALSE, echo=FALSE}
-library(edgeR);library(openxlsx);library(data.table);library(DESeq2);library(tximport);library(stringr);library(ggbiplot);library(dplyr);library(knitr);library(gridExtra)
+library(edgeR);library(openxlsx);library(data.table);library(DESeq2);library(tximport);library(stringr);library(ggbiplot);library(dplyr);library(knitr);library(gridExtra);library(corrplot);library(tidyverse)
 ```
 
 ### Apply TPM transformation to salmon counts:
@@ -74,22 +74,59 @@ counts.tpm <- as.data.frame(r_tpm(counts, lengths))
 ```
 
 ```{r}
-tec2 <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/Technical_CompleteV2.xlsx")
-cc <- tec2[,c("Case")]
+tec <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/Technical_CompleteV2.xlsx")
+cc <- tec[,c("Case")]
 cc[cc == 1] <- "Case"
 cc[cc == 0] <- "Control"
-counts.tpm <- t(counts.tpm)
+table(tec$Case)
+```
 
-# Remove genes that have 0 variability:
-counts_var <- counts.tpm[,apply(counts.tpm, 2, var, na.rm=TRUE) != 0]
+### Convert to DGElist object and remove rows with consistent 0 or low counts:
 
-my_pca <- prcomp(counts_var, center = T, scale. = T)
+```{r}
+dge <- DGEList(counts=counts.tpm)
+
+# Set "Control" to be the first level:
+group_list <- factor(x = c(rep("Case",97), rep("Control",44)),
+              levels=c("Control","Case"))
+
+design <- model.matrix(~group_list)
+
+keep <- filterByExpr(dge, design)
+dge <- dge[keep,,keep.lib.sizes=FALSE]
+```
+
+### Apply TMM Normalization:
+
+```{r}
+dge <- calcNormFactors(dge, method = "TMM")
+```
+
+### Apply logCPM transformation to test the effects of covariates:
+
+```{r}
+dgeTpmAdjCpm <- cpm(geneCountDge)
+```
+
+
+
+
+```{r}
+v <- voom(dge, design, plot = TRUE)
+```
+
+### Perform PCA:
+```{r}
+my_pca <- prcomp(t(dge), center = T, scale. = T)
+summaryPca <- summary(my_pca)
 ```
 
 ### PCA Plots:
 
 ```{r, include=TRUE}
-plot(my_pca, main = "Variance Explained")
+barplot((my_pca$sdev^2 / sum(my_pca$sdev^2))[1:20], names.arg = 1:20,  
+        xlab = "PC #", ylab = "Amount of explained variance per PC",
+        ylim=c(0,0.5), las=2, cex.names=.8)
 ```
 
 ```{r, include=TRUE}
@@ -99,7 +136,7 @@ plot(cumsum(my_pca$sdev^2 / sum(my_pca$sdev^2))[1:10], type="b", ylab = "Cummula
 ### PCA Plot:
 
 ```{r, include=TRUE}
-ggbiplot(my_pca, labels = rownames(counts_var), groups = cc, var.axes = F, obs.scale = 1, var.scale = 1) +
+ggbiplot(my_pca, labels = colnames(dgeTpmAdjCpm), groups = cc, var.axes = F, obs.scale = 1, var.scale = 1) +
   scale_color_discrete(name = "") +
   theme(legend.direction = "horizontal", legend.position = "top")
 ```
@@ -107,17 +144,17 @@ ggbiplot(my_pca, labels = rownames(counts_var), groups = cc, var.axes = F, obs.s
 ### Plot the histograms of the 9 smallest PC1:
 
 ```{r}
-par(mfrow = c(3, 3))
-pca1.min <- head(order(predict(my_pca)[, 1]), 9)
-for (i in 1:9) hist(as.numeric(counts_var[pca1.min[i], ]), main = paste0("Number ", i), xlab = "Gene expression")
+#par(mfrow = c(3, 3))
+#pca1.min <- head(order(predict(my_pca)[,1]), 9)
+#for (i in 1:9) hist(as.numeric(dgeTpmAdjCpm[pca1.min[i], ]), main = paste0("Number ", i), xlab = "Gene expression")
 ```
 
 ### Plot the histograms of the 9 largest PC1:
 
 ```{r}
-par(mfrow = c(3, 3))
-pca1.max <- head(order(predict(my_pca)[, 1], decreasing = T), 9)
-for (i in 1:9) hist(as.numeric(counts_var[pca1.max[i], ]), main = paste0("Number ", i), xlab = "Gene expression")
+#par(mfrow = c(3, 3))
+#pca1.max <- head(order(predict(my_pca)[,1], decreasing = T), 9)
+#for (i in 1:9) hist(as.numeric(dgeTpmAdjCpm[pca1.max[i], ]), main = paste0("Number ", i), xlab = "Gene expression")
 ```
 
 ### Technical batches names:
@@ -321,19 +358,18 @@ Correlations <- cbind(Correlations, dfPvalue[,-1])
 rownames(Correlations) <- paste0("PC",1:10)
 colnames(Correlations) <- c("Case","Date","FC","Batch","GC_Mean","RIN")
 
-write.xlsx(as.data.frame(Correlations), "C://Users/Gerard/Desktop/AAA/RNAseq/Correlation.xlsx", sep = "\t", rowNames = T)
+#write.xlsx(as.data.frame(Correlations), "C://Users/Gerard/Desktop/AAA/RNAseq/Correlation.xlsx", sep = "\t", rowNames = T)
 ```
 
-```{r}
-table(tec$Batch, tec$Date)
-```
 
 ```{r}
-table(tec$Batch, tec$FC)
-```
+tec2 <- tec %>% remove_rownames %>% column_to_rownames(var="SampleID")
+tec2 <- tec2[,2:ncol(tec2)]
 
-```{r}
-table(tec$FC, tec$Date)
+tec2$FC <- as.numeric(as.factor(tec2$FC))
+tec2$Date <- as.numeric(as.factor(tec2$Date))
+
+corrplot(cor(tec2), method = "square", type = "lower", order = "AOE", addCoef.col = "black", tl.pos = "ld", cl.pos = "n")
 ```
 
 GC Content Histogram
@@ -351,14 +387,14 @@ Extreme Gc Content values
 # Left tail
 par(mfrow = c(3, 3))
 gc.min <- head(order(tec$GC_Mean), 9)
-for (i in 1:9) hist(as.numeric(counts_var[gc.min[i], ]), main = paste0("Number ", i), xlab = "Gene expression")
+for (i in 1:9) hist(as.numeric(dgeTpmAdjCpm[gc.min[i], ]), main = paste0("Number ", i), xlab = "Gene expression")
 ```
 
 ```{r}
 # Right tail
 par(mfrow = c(3, 3))
 gc.max <- head(order(tec$GC_Mean, decreasing = T), 9)
-for (i in 1:9) hist(as.numeric(counts_var[gc.max[i], ]), main = paste0("Number ", i), xlab = "Gene expression")
+for (i in 1:9) hist(as.numeric(dgeTpmAdjCpm[gc.max[i], ]), main = paste0("Number ", i), xlab = "Gene expression")
 ```
 
 # Covariates influence in the PCA:

@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r, warning=FALSE, message=FALSE, echo = FALSE}
-library(limma);library(data.table);library(edgeR);library(tidyverse);library(openxlsx)
+library(limma);library(data.table);library(edgeR);library(tidyverse);library(openxlsx);library(corrplot)
 ```
 
 ```{r}
@@ -44,6 +44,7 @@ count.matrix <- count.matrix %>% remove_rownames %>% column_to_rownames(var="gen
 ```{r}
 # Use the annotation file to select among the quantified genes:
 ann <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Annotation/gencode.v26.annotation.fixed.gtf.gz")
+ann <- fread("/home/gerard/RNAseq/GTEx/gencode.v26.annotation.fixed.gtf.gz")
 count.matrix2 <- count.matrix[rownames(count.matrix) %in% ann$gene_id,]
 
 paste("From the", nrow(ann), "filtered genes present in the annotation file,", nrow(count.matrix2), "have been quantified")
@@ -58,7 +59,7 @@ if (sum(duplicated(rownames(count.matrix2))) != 0) {warning("There are duplicate
 ```{r}
 dge <- DGEList(counts=count.matrix2)
 
-# Set "Control" to be the first level
+# Set "Control" to be the first level:
 group_list <- factor(x = c(rep("Case",5), rep("Control",4)),
               levels=c("Control","Case"))
 
@@ -105,6 +106,8 @@ barplot((my_pca$sdev^2 / sum(my_pca$sdev^2))[1:20], names.arg = 1:20,
         xlab = "PC #", ylab = "Amount of explained variance per PC",
         ylim=c(0,0.5), las=2, cex.names=.8)
 ```
+
+
 
 Correlation of the most important PCs (PC1-4) with our technical:
 
