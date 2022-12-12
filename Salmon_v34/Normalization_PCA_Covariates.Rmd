@@ -67,18 +67,19 @@ counts.tpm <- as.data.frame(r_tpm(counts, lengths))
 #counts(y)
 ```
 
-### Perform PCA, removing genes that do not have variability:
+### Obtain TPM counts, applying custom function:
 
 ```{r}
 counts.tpm <- as.data.frame(r_tpm(counts, lengths))
 ```
+
+### Load Technical table and save a case/control variable:
 
 ```{r}
 tec <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/Technical_CompleteV2.xlsx")
 cc <- tec[,c("Case")]
 cc[cc == 1] <- "Case"
 cc[cc == 0] <- "Control"
-table(tec$Case)
 ```
 
 ### Convert to DGElist object and remove rows with consistent 0 or low counts:
@@ -108,8 +109,8 @@ dge <- calcNormFactors(dge, method = "TMM")
 dgeTpmAdjCpm <- cpm(dge)
 ```
 
-
 ### Perform PCA:
+
 ```{r}
 my_pca <- prcomp(t(dgeTpmAdjCpm), center = T, scale. = T)
 summaryPca <- summary(my_pca)
@@ -120,7 +121,7 @@ summaryPca <- summary(my_pca)
 ```{r, include=TRUE}
 barplot((my_pca$sdev^2 / sum(my_pca$sdev^2))[1:20], names.arg = 1:20,  
         xlab = "PC #", ylab = "Amount of explained variance per PC",
-        ylim=c(0,0.5), las=2, cex.names=.8)
+        ylim=c(0,0.4), las=2, cex.names=.8)
 ```
 
 ```{r, include=TRUE}
@@ -130,7 +131,7 @@ plot(cumsum(my_pca$sdev^2 / sum(my_pca$sdev^2))[1:10], type="b", ylab = "Cummula
 ### PCA Plot:
 
 ```{r, include=TRUE}
-ggbiplot(my_pca, labels = colnames(dgeTpmAdjCpm), groups = cc, var.axes = F, obs.scale = 1, var.scale = 1) +
+ggbiplot(my_pca, labels = colnames(dgeTpmAdjCpm), groups = as.factor(tec$Case), var.axes = F, obs.scale = 1, var.scale = 1) +
   scale_color_discrete(name = "") +
   theme(legend.direction = "horizontal", legend.position = "top")
 ```
