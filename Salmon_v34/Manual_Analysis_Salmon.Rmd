@@ -1,0 +1,7 @@
+---
+title: "Manual Analysis Salmon"
+author: "Gerard Temprano Sagrera"
+date: "2022-12-12"
+output: html_document
+---
+
