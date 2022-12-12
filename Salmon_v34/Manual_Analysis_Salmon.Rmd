@@ -5,3 +5,83 @@ date: "2022-12-12"
 output: html_document
 ---
 
+```{r, warning=FALSE, message=FALSE, echo = FALSE}
+library(data.table);library(edgeR);library(tidyverse);library(openxlsx);library(preprocessCore)
+```
+
+### Apply TPM transformation to salmon counts:
+
+```{r}
+# Load previously prepared salmon read counts:
+counts <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.salmon.txt")
+lengths <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Lengths.txt")
+lengths <- lengths$length/1000
+rnames <- counts$V1
+counts <- counts[,-1]
+rownames(counts) <- rnames
+
+r_tpm <- function(dfr,len)
+{
+  dfr1 <- sweep(dfr,1,len,`/`)
+  sc.f <- colSums(dfr1)/(10^6)
+  return(sweep(dfr1,2,sc.f,`/`))
+}
+
+counts.tpm <- as.data.frame(r_tpm(counts, lengths))
+```
+
+### Create a case/control variable:
+
+```{r}
+tec <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/Technical_CompleteV2.xlsx")
+cc <- tec[,c("Case")]
+cc[cc == 1] <- "Case"
+cc[cc == 0] <- "Control"
+```
+
+### Apply quantile normalization to counts:
+
+```{r}
+tpm.rows <- rownames(counts.tpm)
+tpm.cols <- colnames(counts.tpm)
+
+counts.tpm <- as.data.frame(normalize.quantiles(as.matrix(counts.tpm)))
+
+rownames(counts.tpm) <- tpm.rows
+colnames(counts.tpm) <- tpm.cols
+```
+
+
+### Manual Differential Expression:
+
+```{r}
+Pvalue <- apply(counts.tpm, 1, function(x) summary(lm(x~tec$Case+tec$Date+tec$GC_Mean+tec$RIN))[4][[1]][2,4])
+
+Pvalue[order(Pvalue)][1:10]
+
+#summary(lm(dge$counts[1,]~tec$Case+tec$Date+tec$GC_Mean+tec$RIN))[4][[1]]
+#summary(lm(dge$counts[1,]~tec$Case+tec$Date+tec$GC_Mean+tec$RIN))[4][[1]][2,4]
+```
+
+### Obtain Gene_ID from Ensembl_ID, using annotation file:
+
+```{r}
+ann <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Annotation/gencode.v34.annotation.fixed.gtf.gz")
+lm.deg2 <- merge(lm.deg, ann[,c("gene_id","gene_name")], by.x = 0, by.y = "gene_id")
+
+if(nrow(lm.deg) != nrow(lm.deg2)){print("Some genes have been lost")}
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
