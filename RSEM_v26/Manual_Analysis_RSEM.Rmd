@@ -1,0 +1,59 @@
+---
+title: "Manual Analysis RSEM"
+author: "Gerard Temprano Sagrera"
+date: "2022-12-12"
+output: html_document
+---
+
+```{r, warning=FALSE, message=FALSE, echo = FALSE}
+library(data.table);library(edgeR);library(tidyverse);library(openxlsx);library(preprocessCore)
+```
+
+### Make a Count Matrix from the RSEM results:
+
+```{r}
+ff <- list.files("/home/gerard/RNAseq/GTEx",pattern = "*.rsem.genes.results", recursive = T, full.names = T)
+
+count.matrix <- c()
+
+# Loop through all *.rsem.genes.results files obtained from RSEM.
+for (i in 1:length(ff)) {
+  if (i == 1) {
+    res <- fread(ff[i], select = c("gene_id", "TPM"))
+    sample <- strsplit(ff[i], "/")[[1]][6]
+    names(res)[names(res) == "TPM"] <- sample
+    count.matrix <- cbind(count.matrix, res)
+  } else {
+    res <- fread(ff[i], select = c("TPM"))
+    sample <- strsplit(ff[i], "/")[[1]][6]
+    names(res)[names(res) == "TPM"] <- sample
+    count.matrix <- cbind(count.matrix, res)
+  }
+}
+
+if (ncol(count.matrix) != 142) {warning("Not all samples have been analyzed")}
+
+count.matrix <- count.matrix %>% remove_rownames %>% column_to_rownames(var="gene_id")
+```
+
+
+```{r}
+# Use the annotation file to select among the quantified genes:
+ann <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Annotation/gencode.v26.annotation.fixed.gtf.gz")
+ann <- fread("/home/gerard/RNAseq/GTEx/gencode.v26.annotation.fixed.gtf.gz")
+count.matrix2 <- count.matrix[rownames(count.matrix) %in% ann$gene_id,]
+
+paste("From the", nrow(ann), "filtered genes present in the annotation file,", nrow(count.matrix2), "have been quantified")
+
+paste(nrow(count.matrix) - nrow(count.matrix2), "genes were quantified but are removed due to filtering in the annotation file")
+
+if (sum(duplicated(rownames(count.matrix2))) != 0) {warning("There are duplicates gene ids!!")}
+```
+
+
+
+
+
+
+
+
