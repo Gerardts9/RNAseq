@@ -35,13 +35,6 @@ r_tpm <- function(dfr,len)
 counts.tpm <- as.data.frame(r_tpm(counts, lengths))
 ```
 
-
-### Apply TPM transformation:
-
-```{r}
-counts.tpm <- as.data.frame(r_tpm(counts, lengths))
-```
-
 ### Create a case/control variable:
 
 ```{r}
@@ -51,6 +44,15 @@ cc[cc == 1] <- "Case"
 cc[cc == 0] <- "Control"
 table(tec$Case)
 ```
+
+
+
+```{r}
+sum(apply(counts.tpm, 1, var) != 0)
+sum(keep)
+```
+
+
 
 ### Convert TPM counts to DGElist object and remove rows with consistent 0 or low counts:
 
@@ -64,9 +66,11 @@ AAA <- factor(x = c(rep("Case",97), rep("Control",44)),
 # Batch and FC are not included because are highly correlated with AAA:
 
 design <- model.matrix(~AAA+tec$Date+tec$GC_Mean+tec$RIN)
+
 colnames(design) <- c("(Intercept)", "AAACase", "Date202220829", "GC_Mean", "RIN")
 
 keep <- filterByExpr(dge, design)
+sum(keep)
 dge <- dge[keep,,keep.lib.sizes=FALSE]
 ```
 
