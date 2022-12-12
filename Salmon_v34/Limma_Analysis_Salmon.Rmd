@@ -9,6 +9,11 @@ output: html_document
 library(limma);library(data.table);library(edgeR);library(tidyverse);library(openxlsx)
 ```
 
+
+```{r}
+#limmaUsersGuide()
+```
+
 ### Apply TPM transformation to salmon counts:
 
 ```{r}
@@ -31,11 +36,13 @@ counts.tpm <- as.data.frame(r_tpm(counts, lengths))
 ```
 
 
-### Perform PCA, removing genes that do not have variability:
+### Apply TPM transformation:
 
 ```{r}
 counts.tpm <- as.data.frame(r_tpm(counts, lengths))
 ```
+
+### Create a case/control variable:
 
 ```{r}
 tec <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/Technical_CompleteV2.xlsx")
@@ -45,16 +52,19 @@ cc[cc == 0] <- "Control"
 table(tec$Case)
 ```
 
-### Convert to DGElist object and remove rows with consistent 0 or low counts:
+### Convert TPM counts to DGElist object and remove rows with consistent 0 or low counts:
 
 ```{r}
 dge <- DGEList(counts=counts.tpm)
 
 # Set "Control" to be the first level:
-group_list <- factor(x = c(rep("Case",97), rep("Control",44)),
+AAA <- factor(x = c(rep("Case",97), rep("Control",44)),
               levels=c("Control","Case"))
 
-design <- model.matrix(~group_list)
+# Batch and FC are not included because are highly correlated with AAA:
+
+design <- model.matrix(~AAA+tec$Date+tec$GC_Mean+tec$RIN)
+colnames(design) <- c("(Intercept)", "AAACase", "Date202220829", "GC_Mean", "RIN")
 
 keep <- filterByExpr(dge, design)
 dge <- dge[keep,,keep.lib.sizes=FALSE]
@@ -72,13 +82,27 @@ dge <- calcNormFactors(dge, method = "TMM")
 v <- voom(dge, design, plot = TRUE)
 ```
 
+### Limma Differential Expression:
 
+```{r}
+fit <- lmFit(v, design)
+fit <- eBayes(fit)
+```
 
+```{r}
+lm.deg <- topTable(fit, coef=1, number = Inf)
 
+summary(decideTests(fit))
+```
 
+### Obtain Gene_ID from Ensembl_ID, using annotation file:
 
+```{r}
+ann <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Annotation/gencode.v34.annotation.fixed.gtf.gz")
+lm.deg2 <- merge(lm.deg, ann[,c("gene_id","gene_name")], by.x = 0, by.y = "gene_id")
 
-
+if(nrow(lm.deg) != nrow(lm.deg2)){print("Some genes have been lost")}
+```
 
 
 
