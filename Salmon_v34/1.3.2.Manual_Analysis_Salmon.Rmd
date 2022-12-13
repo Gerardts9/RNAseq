@@ -59,7 +59,7 @@ Pvalue <- apply(counts.tpm, 1, function(x) summary(lm(x~tec$Case+tec$Date+tec$GC
 
 Pvalue[order(Pvalue)][1:10]
 
-#summary(lm(dge$counts[1,]~tec$Case+tec$Date+tec$GC_Mean+tec$RIN))[4][[1]]
+summary(lm(dge$counts[1,]~tec$Case+tec$Date+tec$GC_Mean+tec$RIN))
 #summary(lm(dge$counts[1,]~tec$Case+tec$Date+tec$GC_Mean+tec$RIN))[4][[1]][2,4]
 ```
 
