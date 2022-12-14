@@ -67,12 +67,6 @@ counts.tpm <- as.data.frame(r_tpm(counts, lengths))
 #counts(y)
 ```
 
-### Obtain TPM counts, applying custom function:
-
-```{r}
-counts.tpm <- as.data.frame(r_tpm(counts, lengths))
-```
-
 ### Load Technical table and save a case/control variable:
 
 ```{r}
@@ -82,9 +76,40 @@ cc[cc == 1] <- "Case"
 cc[cc == 0] <- "Control"
 ```
 
-### Convert to DGElist object and remove rows with consistent 0 or low counts:
+### Filter lowely expressed genes:
 
 ```{r}
+nrow(counts.tpm) # 36,712
+
+#Keep genes that have more than 50% of non-zero counts across all samples.
+keep <- apply(counts.tpm, 1, function(x) sum(x == 0) <= 70)
+sum(keep) # 21,355
+
+all.counts <- counts.tpm[keep,]
+
+# Check how this filter affects cases and controls:
+cases.all.counts <- all.counts[,1:97]
+controls.all.counts <- all.counts[,98:ncol(all.counts)]
+
+sum(apply(cases.all.counts, 1, function(x) sum(x == 0) <= 48)) # 21,197
+sum(apply(controls.all.counts, 1, function(x) sum(x == 0) <= 22)) # 20,499
+
+
+# Keep genes that have more than 50% of non-zero counts across cases and across controls:
+cases.counts <- counts.tpm[,1:97]
+controls.counts <- counts.tpm[,98:ncol(counts.tpm)]
+
+keep.cases <- apply(cases.counts, 1, function(x) sum(x == 0) <= 48)
+sum(keep.cases) # 21,582
+
+keep.controls <- apply(controls.counts, 1, function(x) sum(x == 0) <= 22)
+sum(keep.controls) # 20,922
+
+
+length(intersect(rownames(cases.counts[keep.cases, ]), rownames(controls.counts[keep.controls, ]))) # 20,341
+
+
+
 dge <- DGEList(counts=counts.tpm)
 
 # Set "Control" to be the first level:
