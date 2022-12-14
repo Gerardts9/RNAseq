@@ -75,7 +75,7 @@ dge.all <- calcNormFactors(dge.all, method = "TMM")
 dge.few <- calcNormFactors(dge.few, method = "TMM")
 ```
 
-### Apply voom transformation:
+### Apply voom transformation   :
 
 ```{r}
 v.all <- voom(dge.all, design.all, plot = TRUE)
