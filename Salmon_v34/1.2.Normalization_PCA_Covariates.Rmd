@@ -78,48 +78,48 @@ cc[cc == 0] <- "Control"
 
 ### Filter lowely expressed genes:
 
+Keep genes that have more than 50% of non-zero counts across all samples:
 ```{r}
-nrow(counts.tpm) # 36,712
-
-#Keep genes that have more than 50% of non-zero counts across all samples.
 keep <- apply(counts.tpm, 1, function(x) sum(x == 0) <= 70)
 sum(keep) # 21,355
 
-all.counts <- counts.tpm[keep,]
+counts.tpm <- counts.tpm[keep,]
 
 # Check how this filter affects cases and controls:
-cases.all.counts <- all.counts[,1:97]
-controls.all.counts <- all.counts[,98:ncol(all.counts)]
+cases.tpm <- counts.tpm[,1:97]
+controls.tpm <- counts.tpm[,98:ncol(counts.tpm)]
 
-sum(apply(cases.all.counts, 1, function(x) sum(x == 0) <= 48)) # 21,197
-sum(apply(controls.all.counts, 1, function(x) sum(x == 0) <= 22)) # 20,499
+sum(apply(cases.tpm, 1, function(x) sum(x == 0) <= 48)) # 21,197
+sum(apply(controls.tpm, 1, function(x) sum(x == 0) <= 22)) # 20,499
+```
+
+### Keep genes that have more than 50% of non-zero counts across cases and across controls:
+
+```{r}
+#cases.counts <- counts.tpm[,1:97]
+#controls.counts <- counts.tpm[,98:ncol(counts.tpm)]
+
+#keep.cases <- apply(cases.counts, 1, function(x) sum(x == 0) <= 48)
+#sum(keep.cases) # 21,582
+
+#keep.controls <- apply(controls.counts, 1, function(x) sum(x == 0) <= 22)
+#sum(keep.controls) # 20,922
+
+#length(intersect(rownames(cases.counts[keep.cases, ]), rownames(controls.counts[keep.controls, ]))) # 20,341
+```
 
 
-# Keep genes that have more than 50% of non-zero counts across cases and across controls:
-cases.counts <- counts.tpm[,1:97]
-controls.counts <- counts.tpm[,98:ncol(counts.tpm)]
-
-keep.cases <- apply(cases.counts, 1, function(x) sum(x == 0) <= 48)
-sum(keep.cases) # 21,582
-
-keep.controls <- apply(controls.counts, 1, function(x) sum(x == 0) <= 22)
-sum(keep.controls) # 20,922
-
-
-length(intersect(rownames(cases.counts[keep.cases, ]), rownames(controls.counts[keep.controls, ]))) # 20,341
-
-
-
+```{r}
 dge <- DGEList(counts=counts.tpm)
 
 # Set "Control" to be the first level:
-group_list <- factor(x = c(rep("Case",97), rep("Control",44)),
-              levels=c("Control","Case"))
+#group_list <- factor(x = c(rep("Case",97), rep("Control",44)),
+#              levels=c("Control","Case"))
 
-design <- model.matrix(~group_list)
+#design <- model.matrix(~group_list)
 
-keep <- filterByExpr(dge, design)
-dge <- dge[keep,,keep.lib.sizes=FALSE]
+#keep <- filterByExpr(dge, design)
+#dge <- dge[keep,,keep.lib.sizes=FALSE]
 ```
 
 ### Apply TMM Normalization:
