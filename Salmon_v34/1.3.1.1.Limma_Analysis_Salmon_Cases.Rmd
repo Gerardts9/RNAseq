@@ -1,5 +1,5 @@
 ---
-title: "Manual Analysis Salmon Cases"
+title: "Limma Analysis Salmon Cases"
 author: "Gerard Temprano Sagrera"
 date: "2022-12-16"
 output: html_document
@@ -30,13 +30,13 @@ r_tpm <- function(dfr,len)
 counts.tpm <- as.data.frame(r_tpm(counts, lengths))
 ```
 
-### Create a case/control variable:
+### Select only cases on technical variables:
 
 ```{r}
 tec <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/Technical_CompleteV2.xlsx")
-cc <- tec[,c("Case")]
-cc[cc == 1] <- "Case"
-cc[cc == 0] <- "Control"
+
+# Select only cases:
+tec <- tec[1:97,]
 ```
 
 ### Filter lowely expressed genes:
@@ -44,7 +44,7 @@ cc[cc == 0] <- "Control"
 Keep genes that have more than 50% of non-zero counts across all samples:
 ```{r}
 keep <- apply(counts.tpm, 1, function(x) sum(x == 0) <= 70)
-sum(keep) # 21,355
+#sum(keep) # 21,355
 
 counts.tpm <- counts.tpm[keep,]
 
@@ -52,32 +52,83 @@ counts.tpm <- counts.tpm[keep,]
 cases.tpm <- counts.tpm[,1:97]
 controls.tpm <- counts.tpm[,98:ncol(counts.tpm)]
 
-sum(apply(cases.tpm, 1, function(x) sum(x == 0) <= 48)) # 21,197
-sum(apply(controls.tpm, 1, function(x) sum(x == 0) <= 22)) # 20,499
+#sum(apply(cases.tpm, 1, function(x) sum(x == 0) <= 48)) # 21,197
+#sum(apply(controls.tpm, 1, function(x) sum(x == 0) <= 22)) # 20,499
 ```
 
-### Apply quantile normalization to counts:
+### Convert TPM counts to DGElist object:
 
 ```{r}
-tpm.rows <- rownames(cases.tpm)
-tpm.cols <- colnames(cases.tpm)
-
-cases.tpm <- as.data.frame(normalize.quantiles(as.matrix(cases.tpm)))
-
-rownames(cases.tpm) <- tpm.rows
-colnames(cases.tpm) <- tpm.cols
+dge <- DGEList(counts=cases.tpm)
 ```
 
-
-### Manual Differential Expression:
+### Apply TMM Normalization:
 
 ```{r}
-Pvalue <- apply(counts.tpm, 1, function(x) summary(lm(x~tec$Case+tec$Date+tec$GC_Mean+tec$RIN))[4][[1]][2,4])
+dge <- calcNormFactors(dge, method = "TMM")
+```
 
-Pvalue[order(Pvalue)][1:10]
+### Load Biological data to make comparissons:
 
-summary(lm(dge$counts[1,]~tec$Case+tec$Date+tec$GC_Mean+tec$RIN))
-#summary(lm(dge$counts[1,]~tec$Case+tec$Date+tec$GC_Mean+tec$RIN))[4][[1]][2,4]
+```{r}
+bio <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/20221115_Datos Pacientes.xlsx")
+bio <- bio[2:nrow(bio),]
+
+bio <- bio[bio$Status == "Case",]
+
+# Create BMI:
+bio$BMI <- bio$Weight_Kg/((bio$Height_cm/100)^2)
+bio$BMI.di <- ifelse(bio$BMI > 25, 1, 0)
+bio$BMI.tri <- ifelse(bio$BMI > 30, 2, ifelse(bio$BMI > 25, 1, 0))
+
+
+# Transform aortic diameter to dicotomic variable:
+bio$aortc_diameter_mm2 <- ifelse(bio$aortc_diameter_mm > 55, 1, 0) 
+```
+
+### Create design matrix:
+
+```{r}
+design.sex <- model.matrix(~bio$SEXO+tec$Date+tec$GC_Mean+tec$Batch)
+
+design.type <- model.matrix(~bio$TIPOANEURISMA+tec$Date+tec$GC_Mean+tec$Batch)
+
+design.sympt <- model.matrix(~bio$symptomatic+tec$Date+tec$GC_Mean+tec$Batch)
+
+design.bmi.di <- model.matrix(~bio$BMI.di+tec$Date+tec$GC_Mean+tec$Batch)
+
+design.bmi.tri <- model.matrix(~bio$BMI.tri+tec$Date+tec$GC_Mean+tec$Batch)
+
+design.smoke <- model.matrix(~bio$Smoking+tec$Date+tec$GC_Mean+tec$Batch)
+
+design.diameter <- model.matrix(~bio$aortc_diameter_mm2+tec$Date+tec$GC_Mean+tec$Batch)
+
+design.other.ann <- model.matrix(~bio$other_aneurysm+tec$Date+tec$GC_Mean+tec$Batch)
+```
+
+### Apply voom transformation:
+THERE ARE NAS and does not work.
+```{r}
+designs <- c("design.sex","design.type","design.sympt","design.bmi.di","design.bmi.tri","design.smoke",
+             "design.diameter","design.other.ann")
+v.list <- c()
+
+for (i in 1:length(designs)){}
+v.list[[i]] <- voom(dge, get(designs[i]), plot = TRUE)
+i=2
+```
+
+### Limma Differential Expression:
+
+```{r}
+fit <- lmFit(v, design)
+fit <- eBayes(fit)
+```
+
+```{r}
+lm <- topTable(fit, coef=1, number = Inf)
+
+summary(decideTests(fit))
 ```
 
 ### Obtain Gene_ID from Ensembl_ID, using annotation file:
@@ -88,6 +139,14 @@ lm.deg2 <- merge(lm.deg, ann[,c("gene_id","gene_name")], by.x = 0, by.y = "gene_
 
 if(nrow(lm.deg) != nrow(lm.deg2)){print("Some genes have been lost")}
 ```
+
+
+
+
+
+
+
+
 
 
 
