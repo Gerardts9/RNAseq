@@ -51,6 +51,22 @@ rownames(counts.tpm) <- tpm.rows
 colnames(counts.tpm) <- tpm.cols
 ```
 
+### Filter lowely expressed genes:
+
+Keep genes that have more than 50% of non-zero counts across all samples:
+```{r}
+keep <- apply(counts.tpm, 1, function(x) sum(x == 0) <= 70)
+sum(keep) # 21,355
+
+counts.tpm <- counts.tpm[keep,]
+
+# Check how this filter affects cases and controls:
+cases.tpm <- counts.tpm[,1:97]
+controls.tpm <- counts.tpm[,98:ncol(counts.tpm)]
+
+sum(apply(cases.tpm, 1, function(x) sum(x == 0) <= 48)) # 21,197
+sum(apply(controls.tpm, 1, function(x) sum(x == 0) <= 22)) # 20,499
+```
 
 ### Manual Differential Expression:
 
