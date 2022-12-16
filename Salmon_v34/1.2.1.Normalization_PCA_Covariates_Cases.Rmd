@@ -1,0 +1,392 @@
+---
+title: "RNAseq AAA Normalization Cases"
+author: "Gerard Temprano Sagrera"
+date: "2022-12-16"
+output: html_document
+---
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+library(edgeR);library(openxlsx);library(data.table);library(DESeq2);library(tximport);library(stringr);library(ggbiplot);library(dplyr);library(knitr);library(gridExtra);library(corrplot);library(tidyverse)
+```
+
+### Apply TPM transformation to salmon counts:
+
+```{r}
+# Load previously prepared salmon read counts:
+counts <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.salmon.txt")
+lengths <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Lengths.txt")
+lengths <- lengths$length/1000
+rnames <- counts$V1
+counts <- counts[,-1]
+rownames(counts) <- rnames
+
+r_tpm <- function(dfr,len)
+{
+  dfr1 <- sweep(dfr,1,len,`/`)
+  sc.f <- colSums(dfr1)/(10^6)
+  return(sweep(dfr1,2,sc.f,`/`))
+}
+
+counts.tpm <- as.data.frame(r_tpm(counts, lengths))
+```
+
+### Load Technical table and save a case/control variable:
+
+```{r}
+tec <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/Technical_CompleteV2.xlsx")
+cc <- tec[,c("Case")]
+cc[cc == 1] <- "Case"
+cc[cc == 0] <- "Control"
+```
+
+### Filter lowely expressed genes:
+
+Keep genes that have more than 50% of non-zero counts across all samples:
+```{r}
+keep <- apply(counts.tpm, 1, function(x) sum(x == 0) <= 70)
+sum(keep) # 21,355
+
+counts.tpm <- counts.tpm[keep,]
+
+# Check how this filter affects cases and controls:
+cases.tpm <- counts.tpm[,1:97]
+controls.tpm <- counts.tpm[,98:ncol(counts.tpm)]
+
+sum(apply(cases.tpm, 1, function(x) sum(x == 0) <= 48)) # 21,197
+sum(apply(controls.tpm, 1, function(x) sum(x == 0) <= 22)) # 20,499
+```
+
+### Keep genes that have more than 50% of non-zero counts across cases and across controls:
+
+```{r}
+#cases.counts <- counts.tpm[,1:97]
+#controls.counts <- counts.tpm[,98:ncol(counts.tpm)]
+
+#keep.cases <- apply(cases.counts, 1, function(x) sum(x == 0) <= 48)
+#sum(keep.cases) # 21,582
+
+#keep.controls <- apply(controls.counts, 1, function(x) sum(x == 0) <= 22)
+#sum(keep.controls) # 20,922
+
+#length(intersect(rownames(cases.counts[keep.cases, ]), rownames(controls.counts[keep.controls, ]))) # 20,341
+```
+
+### Transform to DGEList format:
+
+```{r}
+dge <- DGEList(counts=cases.tpm)
+```
+
+### Apply TMM Normalization:
+
+```{r}
+dge <- calcNormFactors(dge, method = "TMM")
+```
+
+### Apply logCPM transformation to test the effects of covariates:
+
+```{r}
+dgeTpmAdjCpm <- cpm(dge)
+```
+
+### Perform PCA:
+
+```{r}
+my_pca <- prcomp(t(dgeTpmAdjCpm), center = T, scale. = T)
+summaryPca <- summary(my_pca)
+```
+
+### PCA Plots:
+
+```{r, include=TRUE}
+barplot((my_pca$sdev^2 / sum(my_pca$sdev^2))[1:20], names.arg = 1:20,  
+        xlab = "PC #", ylab = "Amount of explained variance per PC",
+        ylim=c(0,0.4), las=2, cex.names=.8)
+```
+
+```{r, include=TRUE}
+plot(cumsum(my_pca$sdev^2 / sum(my_pca$sdev^2))[1:10], type="b", ylab = "Cummulative proportion of Variance Explained")
+```
+
+### PCA Plot Controls:
+
+```{r, include=TRUE}
+ggbiplot(my_pca, labels = colnames(dgeTpmAdjCpm), var.axes = F, obs.scale = 1, var.scale = 1) +
+  scale_color_discrete(name = "") +
+  theme(legend.direction = "horizontal", legend.position = "top")
+```
+
+### Plot the histograms of the 9 smallest PC1:
+
+```{r}
+#par(mfrow = c(3, 3))
+#pca1.min <- head(order(predict(my_pca)[,1]), 9)
+#for (i in 1:9) hist(as.numeric(dgeTpmAdjCpm[pca1.min[i], ]), main = paste0("Number ", i), xlab = "Gene expression")
+```
+
+### Plot the histograms of the 9 largest PC1:
+
+```{r}
+#par(mfrow = c(3, 3))
+#pca1.max <- head(order(predict(my_pca)[,1], decreasing = T), 9)
+#for (i in 1:9) hist(as.numeric(dgeTpmAdjCpm[pca1.max[i], ]), main = paste0("Number ", i), xlab = "Gene expression")
+```
+
+### Technical batches names:
+
+```{r, echo = FALSE}
+tec <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/Technical_CompleteV2.xlsx")
+
+# Select only cases:
+tec <- tec[1:97,]
+```
+
+### Covariates against PCA:
+
+#### Date:
+
+```{r}
+covariate <- "Date"
+
+boxplotMatrix <- cbind(tec, my_pca$x[,1:10])
+boxplotMatrixMelt <- data.frame(reshape2::melt(boxplotMatrix[,c(covariate, paste0("PC", 1:4))], id.vars=covariate))
+colnames(boxplotMatrixMelt)[1] <- "covariate"
+
+dfPvalue <- as.data.frame(matrix(unlist(lapply(paste0("PC", 1:10), function(x) c(anova(lm(as.formula(paste0(x, "~1+", covariate)), data=boxplotMatrix))[5][[1]][1], summary(lm(as.formula(paste0(x, "~1+", covariate)), data = boxplotMatrix))[9]))), ncol=2, byrow = T))
+
+colnames(dfPvalue) <- c("pvalue", "adjR2")
+rownames(dfPvalue) <- paste0("PC", 1:10)
+
+dfPvalue$pvalue <- as.numeric(format(dfPvalue$pvalue, digits = 3))
+dfPvalue$adjR2 <- as.numeric(format(dfPvalue$adjR2, digits = 3))
+
+ggplot(boxplotMatrixMelt, aes(x=as.factor(covariate), y=value)) +
+  geom_boxplot() +
+  theme_bw(base_size = 16) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  facet_wrap(~variable,  ncol=2)
+```
+
+```{r}
+colnames(dfPvalue) <- c("pvalue", "covariate")
+dfPvalue$covariate <- ifelse(dfPvalue$pvalue < 0.05, paste0(dfPvalue$covariate, " ***"), dfPvalue$covariate)
+
+Correlations <- c()
+Correlations <- cbind(Correlations, dfPvalue[,-1])
+```
+
+#### Batch:
+
+```{r}
+covariate <- "Batch"
+
+boxplotMatrix <- cbind(tec, my_pca$x[,1:10])
+boxplotMatrixMelt <- data.frame(reshape2::melt(boxplotMatrix[,c(covariate, paste0("PC", 1:4))], id.vars=covariate))
+colnames(boxplotMatrixMelt)[1] <- "covariate"
+
+dfPvalue <- as.data.frame(matrix(unlist(lapply(paste0("PC", 1:10), function(x) c(anova(lm(as.formula(paste0(x, "~1+", covariate)), data=boxplotMatrix))[5][[1]][1], summary(lm(as.formula(paste0(x, "~1+", covariate)), data = boxplotMatrix))[9]))), ncol=2, byrow = T))
+
+colnames(dfPvalue) <- c("pvalue", "adjR2")
+rownames(dfPvalue) <- paste0("PC", 1:10)
+
+dfPvalue$pvalue <- as.numeric(format(dfPvalue$pvalue, digits = 3))
+dfPvalue$adjR2 <- as.numeric(format(dfPvalue$adjR2, digits = 3))
+
+ggplot(boxplotMatrixMelt, aes(x=as.factor(covariate), y=value)) +
+  geom_boxplot() +
+  theme_bw(base_size = 16) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  facet_wrap(~variable,  ncol=2)
+```
+
+```{r}
+colnames(dfPvalue) <- c("pvalue", "covariate")
+dfPvalue$covariate <- ifelse(dfPvalue$pvalue < 0.05, paste0(dfPvalue$covariate, " ***"), dfPvalue$covariate)
+
+Correlations <- cbind(Correlations, dfPvalue[,-1])
+```
+
+#### GC_Mean:
+
+```{r}
+covariate <- "GC_Mean"
+
+boxplotMatrix <- cbind(tec, my_pca$x[,1:10])
+boxplotMatrixMelt <- data.frame(reshape2::melt(boxplotMatrix[,c(covariate, paste0("PC", 1:4))], id.vars=covariate))
+colnames(boxplotMatrixMelt)[1] <- "covariate"
+
+dfPvalue <- as.data.frame(matrix(unlist(lapply(paste0("PC", 1:10), function(x) c(anova(lm(as.formula(paste0(x, "~1+", covariate)), data=boxplotMatrix))[5][[1]][1], summary(lm(as.formula(paste0(x, "~1+", covariate)), data = boxplotMatrix))[9]))), ncol=2, byrow = T))
+
+colnames(dfPvalue) <- c("pvalue", "adjR2")
+rownames(dfPvalue) <- paste0("PC", 1:10)
+
+dfPvalue$pvalue <- as.numeric(format(dfPvalue$pvalue, digits = 3))
+dfPvalue$adjR2 <- as.numeric(format(dfPvalue$adjR2, digits = 3))
+
+ggplot(boxplotMatrixMelt, aes(x=as.factor(covariate), y=value)) +
+  geom_boxplot() +
+  theme_bw(base_size = 16) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  facet_wrap(~variable,  ncol=2)
+```
+
+```{r}
+colnames(dfPvalue) <- c("pvalue", "covariate")
+dfPvalue$covariate <- ifelse(dfPvalue$pvalue < 0.05, paste0(dfPvalue$covariate, " ***"), dfPvalue$covariate)
+
+Correlations <- cbind(Correlations, dfPvalue[,-1])
+```
+
+#### RIN:
+
+```{r}
+covariate <- "RIN"
+
+boxplotMatrix <- cbind(tec, my_pca$x[,1:10])
+boxplotMatrixMelt <- data.frame(reshape2::melt(boxplotMatrix[,c(covariate, paste0("PC", 1:4))], id.vars=covariate))
+colnames(boxplotMatrixMelt)[1] <- "covariate"
+
+dfPvalue <- as.data.frame(matrix(unlist(lapply(paste0("PC", 1:10), function(x) c(anova(lm(as.formula(paste0(x, "~1+", covariate)), data=boxplotMatrix))[5][[1]][1], summary(lm(as.formula(paste0(x, "~1+", covariate)), data = boxplotMatrix))[9]))), ncol=2, byrow = T))
+
+colnames(dfPvalue) <- c("pvalue", "adjR2")
+rownames(dfPvalue) <- paste0("PC", 1:10)
+
+dfPvalue$pvalue <- as.numeric(format(dfPvalue$pvalue, digits = 3))
+dfPvalue$adjR2 <- as.numeric(format(dfPvalue$adjR2, digits = 3))
+
+ggplot(boxplotMatrixMelt, aes(x=as.factor(covariate), y=value)) +
+  geom_boxplot() +
+  theme_bw(base_size = 16) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  facet_wrap(~variable,  ncol=2)
+```
+
+```{r}
+colnames(dfPvalue) <- c("pvalue", "covariate")
+dfPvalue$covariate <- ifelse(dfPvalue$pvalue < 0.05, paste0(dfPvalue$covariate, " ***"), dfPvalue$covariate)
+
+Correlations <- cbind(Correlations, dfPvalue[,-1])
+```
+
+#### Prepare and save Correlations table:
+
+```{r}
+rownames(Correlations) <- paste0("PC",1:10)
+colnames(Correlations) <- c("Date","Batch","GC_Mean","RIN")
+
+write.xlsx(as.data.frame(Correlations), "C://Users/Gerard/Desktop/AAA/RNAseq/Correlation_Cases.xlsx", sep = "\t", rowNames = T)
+```
+
+Recommended technical variables: Date, Batch, GC_Mean.
+
+```{r}
+tec2 <- tec %>% remove_rownames %>% column_to_rownames(var="SampleID")
+tec2 <- tec2[,2:ncol(tec2)]
+
+tec2$Date <- as.numeric(as.factor(tec2$Date))
+tec2 <- tec2[,c("Date","Batch","GC_Mean","RIN","DV200","Qubit")]
+
+
+corrplot(cor(tec2), method = "square", type = "lower", order = "AOE", addCoef.col = "black", tl.pos = "ld", cl.pos = "n")
+```
+
+### GC Content Histogram:
+
+```{r}
+hist(tec$GC_Mean, 
+     breaks = 40, 
+     main = "GC_mean histogram", 
+     xlab = "GC_mean")
+```
+
+### Extreme Gc Content values:
+
+```{r}
+# Left tail
+par(mfrow = c(3, 3))
+gc.min <- head(order(tec$GC_Mean), 9)
+for (i in 1:9) hist(as.numeric(dgeTpmAdjCpm[gc.min[i], ]), main = paste0("Number ", i), xlab = "Gene expression")
+```
+
+```{r}
+# Right tail
+par(mfrow = c(3, 3))
+gc.max <- head(order(tec$GC_Mean, decreasing = T), 9)
+for (i in 1:9) hist(as.numeric(dgeTpmAdjCpm[gc.max[i], ]), main = paste0("Number ", i), xlab = "Gene expression")
+```
+
+### Covariates influence in the PCA:
+
+```{r}
+df.predict <- data.frame(predict(my_pca))[, 1:2]
+df.predict$SampleID <- rownames(df.predict)
+df.all <- plyr::join(tec, df.predict, by = "SampleID", type = "right")
+```
+
+### Batch = Plate:
+
+```{r}
+ggplot(df.all, aes(x = PC1, y = PC2)) + 
+  theme_bw() + 
+  coord_fixed() + 
+  geom_point(aes(colour = as.factor(Batch)), size = 2.5) + 
+  ggtitle("Technical variable: Plate") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(colour = "Plate")
+```
+
+### Date:
+
+```{r}
+ggplot(df.all, aes(x = PC1, y = PC2)) + 
+  theme_bw() + 
+  coord_fixed() + 
+  geom_point(aes(colour = as.factor(Date)), pch = 20, size = 3) + 
+  ggtitle("Technical variable: Date", )+
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+### GC Content:
+
+```{r}
+ggplot(df.all, aes(x = PC1, y = PC2)) + 
+  theme_bw() + 
+  coord_fixed() + 
+  geom_point(aes(colour = as.factor(GC_Mean), shape = as.factor(Case)), size = 2.5) +
+  ggtitle("Technical variable: GC Content", )+
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+### RIN:
+
+```{r}
+ggplot(df.all, aes(x = PC1, y = PC2)) + 
+  theme_bw() + 
+  coord_fixed() + 
+  geom_point(aes(colour = RIN), pch = 20, size = 3) + 
+  scale_colour_continuous(low = "lightblue", high = "darkblue") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  ggtitle("Technical variable: RIN")
+```
+
+### DV200:
+
+```{r}
+ggplot(df.all, aes(x = PC1, y = PC2)) + 
+  theme_bw() + 
+  coord_fixed() + 
+  geom_point(aes(colour = DV200), pch = 20, size = 3) + 
+  scale_colour_continuous(low = "lightblue", high = "darkblue") + 
+  ggtitle("Technical variable: DV200")
+```
+
+### Qubit:
+
+```{r}
+ggplot(df.all, aes(x = PC1, y = PC2)) + 
+  theme_bw() + 
+  coord_fixed() + 
+  geom_point(aes(colour = Qubit), pch = 20, size = 3) + 
+  scale_colour_continuous(low = "lightblue", high = "darkblue") + 
+  ggtitle("Technical variable: Quvit")
+```
