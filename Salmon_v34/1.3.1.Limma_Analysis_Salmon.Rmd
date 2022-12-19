@@ -48,7 +48,7 @@ table(tec$Case)
 
 Keep genes that have more than 50% of non-zero counts across all samples:
 ```{r}
-keep <- apply(counts.tpm, 1, function(x) sum(x == 0) <= 70)
+keep <- apply(counts.tpm, 1, function(x) sum(x == 0) <= nrow(counts.tpm)/2)
 
 sum(keep) # 21,355
 
