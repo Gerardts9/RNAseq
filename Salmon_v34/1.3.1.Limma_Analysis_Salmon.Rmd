@@ -49,6 +49,7 @@ table(tec$Case)
 Keep genes that have more than 50% of non-zero counts across all samples:
 ```{r}
 keep <- apply(counts.tpm, 1, function(x) sum(x == 0) <= 70)
+
 sum(keep) # 21,355
 
 counts.tpm <- counts.tpm[keep,]
@@ -57,14 +58,14 @@ counts.tpm <- counts.tpm[keep,]
 cases.all.counts <- counts.tpm[,1:97]
 controls.all.counts <- counts.tpm[,98:ncol(counts.tpm)]
 
-sum(apply(cases.all.counts, 1, function(x) sum(x == 0) <= 48)) # 21,197
-sum(apply(controls.all.counts, 1, function(x) sum(x == 0) <= 22)) # 20,499
+#sum(apply(cases.all.counts, 1, function(x) sum(x == 0) <= 48)) # 21,197
+#sum(apply(controls.all.counts, 1, function(x) sum(x == 0) <= 22)) # 20,499
 ```
 
-### Convert TPM counts to DGElist object and remove rows with consistent 0 or low counts:
+### Convert TPM counts to DGElist object:
 
 ```{r}
-dge <- DGEList(counts=cases.all.counts)
+dge <- DGEList(counts=counts.tpm)
 
 # Set "Control" to be the first level:
 AAA <- factor(x = c(rep("Case",97), rep("Control",44)),
@@ -72,71 +73,66 @@ AAA <- factor(x = c(rep("Case",97), rep("Control",44)),
 
 # Batch and FC are not included because are highly correlated with AAA:
 
-design.all <- model.matrix(~AAA+tec$Date+tec$GC_Mean+tec$RIN+tec$FC+tec$Batch)
-design.few <- model.matrix(~AAA+tec$Date+tec$GC_Mean+tec$RIN)
+design <- model.matrix(~AAA+tec$Date+tec$GC_Mean+tec$RIN+tec$FC+tec$Batch)
 
-colnames(design.all) <- c("(Intercept)", "AAACase", "Date202220829", "GC_Mean", "RIN","FC","Plate")
-colnames(design.few) <- c("(Intercept)", "AAACase", "Date202220829", "GC_Mean", "RIN")
+colnames(design) <- c("(Intercept)", "AAACase", "Date202220829", "GC_Mean", "RIN","FC","Plate")
+```
 
-keep.all <- filterByExpr(dge, design.all)
-keep.few <- filterByExpr(dge, design.few)
+### Remove lowely expressed genes:
 
-dge.all <- dge[keep.all,,keep.lib.sizes=FALSE]
-dge.few <- dge[keep.few,,keep.lib.sizes=FALSE]
+```{r}
+keep <- filterByExpr(dge, design)
+dge <- dge[keep,,keep.lib.sizes=FALSE]
 ```
 
 ### Apply TMM Normalization:
 
 ```{r}
-dge.all <- calcNormFactors(dge.all, method = "TMM")
-dge.few <- calcNormFactors(dge.few, method = "TMM")
+dge <- calcNormFactors(dge, method = "TMM")
 ```
 
-### Apply voom transformation   :
+### Apply voom transformation:
 
 ```{r}
-v.all <- voom(dge.all, design.all, plot = TRUE)
-v.few <- voom(dge.few, design.few, plot = TRUE)
+v <- voom(dge, design, plot = TRUE)
 ```
 
 ### Limma Differential Expression:
 
 ```{r}
-fit.all <- lmFit(v.all, design.all)
-fit.all <- eBayes(fit.all)
+fit <- lmFit(v, design)
+fit <- eBayes(fit)
 ```
 
+### Obtain differentially expressed genes between all conditions:
+
 ```{r}
-fit.few <- lmFit(v.few, design.few)
-fit.few <- eBayes(fit.few)
+summary(decideTests(fit))
 ```
 
-```{r}
-lm.deg <- topTable(fit.all, coef=1, number = Inf)
-
-summary(decideTests(fit.all))
-```
+### Obtain results in a table:
 
 ```{r}
-lm.deg <- topTable(fit.few, coef=1, number = Inf)
-
-summary(decideTests(fit.few))
+lm.deg <- topTable(fit, coef="AAACase", number = Inf)
+nrow(lm.deg)
 ```
 
 ### Obtain Gene_ID from Ensembl_ID, using annotation file:
 
 ```{r}
 ann <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Annotation/gencode.v34.annotation.fixed.gtf.gz")
+gene.names <- ann[ann$gene_id %in% rownames(lm.deg),]$gene_name
+
 lm.deg2 <- merge(lm.deg, ann[,c("gene_id","gene_name")], by.x = 0, by.y = "gene_id")
 
 if(nrow(lm.deg) != nrow(lm.deg2)){print("Some genes have been lost")}
 ```
 
+### Volcano Plot:
 
-
-
-
-
+```{r}
+volcanoplot(fit, coef = "AAACase", highlight = 10, names = gene.names)
+```
 
 
 
