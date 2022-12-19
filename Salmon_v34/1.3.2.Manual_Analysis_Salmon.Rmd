@@ -56,7 +56,7 @@ colnames(counts.tpm) <- tpm.cols
 Keep genes that have more than 50% of non-zero counts across all samples:
 ```{r}
 keep <- apply(counts.tpm, 1, function(x) sum(x == 0) <= 70)
-sum(keep) # 21,355
+#sum(keep) # 21,355
 
 counts.tpm <- counts.tpm[keep,]
 
@@ -64,28 +64,32 @@ counts.tpm <- counts.tpm[keep,]
 cases.tpm <- counts.tpm[,1:97]
 controls.tpm <- counts.tpm[,98:ncol(counts.tpm)]
 
-sum(apply(cases.tpm, 1, function(x) sum(x == 0) <= 48)) # 21,197
-sum(apply(controls.tpm, 1, function(x) sum(x == 0) <= 22)) # 20,499
+#sum(apply(cases.tpm, 1, function(x) sum(x == 0) <= 48)) # 21,197
+#sum(apply(controls.tpm, 1, function(x) sum(x == 0) <= 22)) # 20,499
 ```
 
 ### Manual Differential Expression:
 
 ```{r}
 Pvalue <- apply(counts.tpm, 1, function(x) summary(lm(x~tec$Case+tec$Date+tec$GC_Mean+tec$RIN))[4][[1]][2,4])
+Coef <- apply(counts.tpm, 1, function(x) summary(lm(x~tec$Case+tec$Date+tec$GC_Mean+tec$RIN))[4][[1]][2,1])
 
-Pvalue[order(Pvalue)][1:10]
-
-summary(lm(dge$counts[1,]~tec$Case+tec$Date+tec$GC_Mean+tec$RIN))
 #summary(lm(dge$counts[1,]~tec$Case+tec$Date+tec$GC_Mean+tec$RIN))[4][[1]][2,4]
+```
+
+```{r}
+Results <- as.data.frame(cbind(Pvalue, Coef))
+
+Results[p.adjust(Pvalue, method = "fdr") < 0.05,]
 ```
 
 ### Obtain Gene_ID from Ensembl_ID, using annotation file:
 
 ```{r}
 ann <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Annotation/gencode.v34.annotation.fixed.gtf.gz")
-lm.deg2 <- merge(lm.deg, ann[,c("gene_id","gene_name")], by.x = 0, by.y = "gene_id")
+Results2 <- merge(Results, ann[,c("gene_id","gene_name")], by.x = 0, by.y = "gene_id")
 
-if(nrow(lm.deg) != nrow(lm.deg2)){print("Some genes have been lost")}
+if(nrow(Results) != nrow(Results2)){print("Some genes have been lost")}
 ```
 
 
