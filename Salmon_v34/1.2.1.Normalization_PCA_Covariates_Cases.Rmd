@@ -274,7 +274,7 @@ Correlations <- cbind(Correlations, dfPvalue[,-1])
 rownames(Correlations) <- paste0("PC",1:10)
 colnames(Correlations) <- c("Date","Batch","GC_Mean","RIN")
 
-write.xlsx(as.data.frame(Correlations), "C://Users/Gerard/Desktop/AAA/RNAseq/Correlation_Cases.xlsx", sep = "\t", rowNames = T)
+#write.xlsx(as.data.frame(Correlations), "C://Users/Gerard/Desktop/AAA/RNAseq/Correlation_Cases.xlsx", sep = "\t", rowNames = T)
 ```
 
 Recommended technical variables: Date, Batch, GC_Mean.
