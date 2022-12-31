@@ -243,20 +243,117 @@ design <- model.matrix(~bio$age2+tec$Date+tec$GC_Mean+tec$Batch)
 colnames(design) <- c("(Intercept)", "Age2", "Date202220829", "GC_Mean", "Plate")
 
 v <- voom(dge, design, plot = TRUE)
-```
 
-### Limma Differential Expression:
+# Limma Differential Expression:
 
-```{r}
 fit <- lmFit(v, design)
 fit <- eBayes(fit)
-```
 
-### Obtain differentially expressed genes between all conditions:
+# Obtain differentially expressed genes between all conditions:
 
-```{r}
 summary(decideTests(fit))
 ```
+
+### DEG by Sex:
+
+```{r}
+design <- model.matrix(~bio$SEXO+tec$Date+tec$GC_Mean+tec$Batch)
+
+colnames(design) <- c("(Intercept)", "Sex", "Date202220829", "GC_Mean", "Plate")
+
+v <- voom(dge, design, plot = TRUE)
+
+# Limma Differential Expression:
+
+fit <- lmFit(v, design)
+fit <- eBayes(fit)
+
+# Obtain differentially expressed genes between all conditions:
+
+summary(decideTests(fit))
+```
+
+### DEG by Aneurysm Size:
+
+```{r}
+keep <- !is.na(bio$aortc_diameter_mm2)
+
+dge2 <- dge[,keep]
+
+design <- model.matrix(~bio$aortc_diameter_mm2+tec$Date+tec$GC_Mean+tec$Batch)
+
+colnames(design) <- c("(Intercept)", "Size", "Date202220829", "GC_Mean", "Plate")
+
+v <- voom(dge2, design, plot = TRUE)
+
+# Limma Differential Expression:
+
+fit <- lmFit(v, design)
+fit <- eBayes(fit)
+
+# Obtain differentially expressed genes between all conditions:
+
+summary(decideTests(fit))
+```
+
+### DEG by Smoking Status:
+
+```{r}
+keep <- !is.na(bio$Smoking)
+
+dge2 <- dge[,keep]
+
+design <- model.matrix(~bio$Smoking+tec$Date+tec$GC_Mean+tec$Batch)
+
+colnames(design) <- c("(Intercept)","Smoking1","Smoking2","Date202220829", "GC_Mean", "Plate")
+
+v <- voom(dge2, design, plot = TRUE)
+
+# Limma Differential Expression:
+
+fit <- lmFit(v, design)
+fit <- eBayes(fit)
+
+# Obtain differentially expressed genes between all conditions:
+
+summary(decideTests(fit))
+```
+
+### DEG by Disease:
+
+```{r}
+table(bio$BMI.di, useNA = "always")
+keep <- !is.na(bio$BMI.di)
+
+dge2 <- dge[,keep]
+
+design <- model.matrix(~bio$BMI.di+tec$Date+tec$GC_Mean+tec$Batch)
+
+colnames(design) <- c("(Intercept)","Disease","Date202220829", "GC_Mean", "Plate")
+
+v <- voom(dge2, design, plot = TRUE)
+
+# Limma Differential Expression:
+
+fit <- lmFit(v, design)
+fit <- eBayes(fit)
+
+# Obtain differentially expressed genes between all conditions:
+summary(decideTests(fit))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

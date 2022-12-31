@@ -6,7 +6,9 @@ output: html_document
 ---
 
 ```{r, warning=FALSE, message=FALSE, echo = FALSE}
-library(data.table);library(edgeR);library(tidyverse);library(openxlsx);library(preprocessCore)
+library(data.table);library(edgeR);library(tidyverse);library(openxlsx);library(preprocessCore);library(clusterProfiler);library("org.Hs.eg.db")
+
+library(stats)
 ```
 
 ### Apply TPM transformation to salmon counts:
@@ -80,19 +82,61 @@ Coef <- apply(counts.tpm, 1, function(x) summary(lm(x~tec$Case+tec$Date+tec$GC_M
 ```{r}
 Results <- as.data.frame(cbind(Pvalue, Coef))
 
-Results[p.adjust(Pvalue, method = "fdr") < 0.05,]
+Sig.Res <- Results[p.adjust(Pvalue, method = "bonferroni") < 0.05,]
 ```
 
 ### Obtain Gene_ID from Ensembl_ID, using annotation file:
 
 ```{r}
 ann <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Annotation/gencode.v34.annotation.fixed.gtf.gz")
-Results2 <- merge(Results, ann[,c("gene_id","gene_name")], by.x = 0, by.y = "gene_id")
+Sig.Res2 <- merge(Sig.Res, ann[,c("gene_id","gene_name")], by.x = 0, by.y = "gene_id")
+Sig.Res2 <- Sig.Res2 %>% remove_rownames %>% column_to_rownames(var="Row.names")
 
-if(nrow(Results) != nrow(Results2)){print("Some genes have been lost")}
+
+if(nrow(Sig.Res) != nrow(Sig.Res2)){print("Some genes have been lost")}
+```
+
+### Compare with previous results:
+
+```{r}
+Media <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Media.xlsx", colNames = FALSE)
+Adv <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Adventitia.xlsx", colNames = FALSE)
+
+length(intersect(Media$X2, Sig.Res2$gene_name)) # 3,865
+
+length(intersect(Adv$X2, Sig.Res2$gene_name)) # 1,423
+```
+
+### Prepare list for DAVID:
+
+```{r}
+write.table(Sig.Res2$Row.names, "C://Users/Gerard/Desktop/AAA/RNAseq/DAVID.List.txt", sep = "\t", quote = FALSE, row.names = FALSE, col.names = FALSE)
 ```
 
 
+```{r}
+Gene_list <- Sig.Res2[,2]
+names(Gene_list) <- rownames(Sig.Res2)
+Gene_list <- Gene_list[order(-Gene_list)]
+
+gse <- gseGO(Gene_list,
+             ont = "BP",
+             keyType = "ENSEMBL",
+             OrgDb = "org.Hs.eg.db",
+             eps = 1e-300)
+```
+
+```{r}
+as.data.frame(gse)
+```
+
+
+```{r}
+fit <- gseaplot(gse, geneSetID = 1)
+
+
+
+```
 
 
 
