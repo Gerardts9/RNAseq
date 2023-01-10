@@ -54,16 +54,14 @@ bio$BMI.tri <- ifelse(bio$BMI > 30, 2, ifelse(bio$BMI > 25, 1, 0))
 
 # Transform age to dicotomic variable:
 bio$age2 <- ifelse(bio$age <= 65, 0, 1)
-table(bio$age2)
+#table(bio$age2)
 
 # Transform aortic diameter to dicotomic variable:
 bio$aortc_diameter_mm2 <- ifelse(bio$aortc_diameter_mm > 55, 1, 0) 
-table(bio$aortc_diameter_mm2, useNA = "always")
+#table(bio$aortc_diameter_mm2, useNA = "always")
 ```
 
-
 ## Manual Analysis:
-
 
 ### Apply quantile normalization to  counts:
 
@@ -79,8 +77,10 @@ colnames(counts.tpm) <- tpm.cols
 
 ### Filter lowely expressed genes:
 
-Keep genes that have more than 50% of non-zero counts across all samples:
+Remove genes that have more than 50% of zero counts across all samples:
 ```{r}
+sum(counts.tpm[16,] == 0)
+
 keep <- apply(counts.tpm, 1, function(x) sum(x == 0) <= 70)
 #sum(keep) # 21,355
 
@@ -92,38 +92,6 @@ controls.tpm <- counts.tpm[,98:ncol(counts.tpm)]
 
 #sum(apply(cases.tpm, 1, function(x) sum(x == 0) <= 48)) # 21,197
 #sum(apply(controls.tpm, 1, function(x) sum(x == 0) <= 22)) # 20,499
-```
-
-### Differential Expression by Dicotomic Age (0 <= 65 Years Old 1 > 65 Years Old):
-
-```{r}
-print(paste0("There are ", sum(is.na(bio$age2))," NAs"))
-table(bio$age2, useNA = "always")
-
-Pvalue <- apply(cases.tpm, 1, function(x) summary(lm(x~bio$age2+tec$Date+tec$GC_Mean+tec$Batch))[4][[1]][2,4])
-Coef <- apply(cases.tpm, 1, function(x) summary(lm(x~bio$age2+tec$Date+tec$GC_Mean+tec$Batch))[4][[1]][2,1])
-```
-
-```{r}
-Results.age <- as.data.frame(cbind(Pvalue, Coef))
-
-Results.age[p.adjust(Pvalue, method = "fdr") < 0.05,]
-```
-
-### Differential Expression by Sex (1 Men 2 Women):
-
-```{r}
-print(paste0("There are ", sum(is.na(bio$SEXO))," NAs"))
-table(bio$SEXO, useNA = "always")
-
-Pvalue <- apply(cases.tpm, 1, function(x) summary(lm(x~bio$SEXO+tec$Date+tec$GC_Mean+tec$Batch))[4][[1]][2,4])
-Coef <- apply(cases.tpm, 1, function(x) summary(lm(x~bio$TIPOANEURISMA+tec$Date+tec$GC_Mean+tec$Batch))[4][[1]][2,1])
-```
-
-```{r}
-Results.sex <- as.data.frame(cbind(Pvalue, Coef))
-
-Results.sex[p.adjust(Pvalue, method = "fdr") < 0.05,] # 9
 ```
 
 ### Differential Expression by Size of the Aneurym (1 > 55 mm 0 < 55 mm):
@@ -142,6 +110,55 @@ Results.size <- as.data.frame(cbind(Pvalue, Coef))
 Results.size[p.adjust(Pvalue, method = "fdr") < 0.05,] # 0, even with no other variables.
 ```
 
+
+```{r}
+# Histogram of p-values:
+hist(Pvalue)
+```
+
+### Differential Expression by Dicotomic Age (0 <= 65 Years Old 1 > 65 Years Old):
+
+```{r}
+print(paste0("There are ", sum(is.na(bio$age2))," NAs"))
+table(bio$age2, useNA = "always")
+
+Pvalue <- apply(cases.tpm, 1, function(x) summary(lm(x~bio$age2+tec$Date+tec$GC_Mean+tec$Batch))[4][[1]][2,4])
+Coef <- apply(cases.tpm, 1, function(x) summary(lm(x~bio$age2+tec$Date+tec$GC_Mean+tec$Batch))[4][[1]][2,1])
+```
+
+```{r}
+Results.age <- as.data.frame(cbind(Pvalue, Coef))
+
+Results.age[p.adjust(Pvalue, method = "fdr") < 0.05,]
+```
+
+
+```{r}
+# Histogram of p-values:
+hist(Pvalue)
+```
+
+### Differential Expression by Sex (1 Men 2 Women):
+
+```{r}
+print(paste0("There are ", sum(is.na(bio$SEXO))," NAs"))
+table(bio$SEXO, useNA = "always")
+
+Pvalue <- apply(cases.tpm, 1, function(x) summary(lm(x~bio$SEXO+tec$Date+tec$GC_Mean+tec$Batch))[4][[1]][2,4])
+Coef <- apply(cases.tpm, 1, function(x) summary(lm(x~bio$TIPOANEURISMA+tec$Date+tec$GC_Mean+tec$Batch))[4][[1]][2,1])
+```
+
+```{r}
+Results.sex <- as.data.frame(cbind(Pvalue, Coef))
+
+Results.sex[p.adjust(Pvalue, method = "fdr") < 0.05,] # 9
+```
+
+```{r}
+# Histogram of p-values:
+hist(Pvalue)
+```
+
 ### Differential Expression by Smoking status (0 Never 1 Past (+6 months) 2 Current):
 
 Smoking1:
@@ -151,8 +168,6 @@ table(bio$Smoking, useNA = "always")
 
 Pvalue <- apply(cases.tpm, 1, function(x) summary(lm(x~bio$Smoking+tec$Date+tec$GC_Mean+tec$Batch))[4][[1]][2,4])
 Coef <- apply(cases.tpm, 1, function(x) summary(lm(x~bio$Smoking+tec$Date+tec$GC_Mean+tec$Batch))[4][[1]][2,1])
-
-summary(lm(dge$counts[1,]~bio$Smoking+tec$Date+tec$GC_Mean+tec$Batch))
 ```
 
 ```{r}
@@ -161,6 +176,10 @@ Results.smoke <- as.data.frame(cbind(Pvalue, Coef))
 Results.smoke[p.adjust(Pvalue, method = "fdr") < 0.05,] # 0.
 ```
 
+```{r}
+# Histogram of p-values:
+hist(Pvalue)
+```
 
 Smoking2:
 ```{r}
@@ -175,6 +194,11 @@ Coef <- apply(cases.tpm, 1, function(x) summary(lm(x~bio$Smoking+tec$Date+tec$GC
 Results.smoke <- as.data.frame(cbind(Pvalue, Coef))
 
 Results.smoke[p.adjust(Pvalue, method = "fdr") < 0.05,] # 0.
+```
+
+```{r}
+# Histogram of p-values:
+hist(Pvalue)
 ```
 
 ### Differential Expression by Type of Aneurysm (1 Atherosclerotic 2 Inflammatory):
@@ -192,13 +216,18 @@ Results.type <- as.data.frame(cbind(Pvalue, Coef))
 Results.type[p.adjust(Pvalue, method = "fdr") < 0.05,] # 0.
 ```
 
+```{r}
+# Histogram of p-values:
+hist(Pvalue)
+```
+
 ### Obtain Gene_ID from Ensembl_ID, using annotation file:
 
 ```{r}
-ann <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Annotation/gencode.v34.annotation.fixed.gtf.gz")
-lm.deg2 <- merge(lm.deg, ann[,c("gene_id","gene_name")], by.x = 0, by.y = "gene_id")
+#ann <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Annotation/gencode.v34.annotation.fixed.gtf.gz")
+#lm.deg2 <- merge(lm.deg, ann[,c("gene_id","gene_name")], by.x = 0, by.y = "gene_id")
 
-if(nrow(lm.deg) != nrow(lm.deg2)){print("Some genes have been lost")}
+#if(nrow(lm.deg) != nrow(lm.deg2)){print("Some genes have been lost")}
 ```
 
 
@@ -218,8 +247,8 @@ counts.tpm <- counts.tpm[keep,]
 cases.tpm <- counts.tpm[,1:97]
 controls.tpm <- counts.tpm[,98:ncol(counts.tpm)]
 
-sum(apply(cases.tpm, 1, function(x) sum(x == 0) <= 48)) # 21,197
-sum(apply(controls.tpm, 1, function(x) sum(x == 0) <= 22)) # 20,499
+#sum(apply(cases.tpm, 1, function(x) sum(x == 0) <= 48)) # 21,197
+#sum(apply(controls.tpm, 1, function(x) sum(x == 0) <= 22)) # 20,499
 ```
 
 ### Convert TPM counts to DGElist object:
@@ -234,6 +263,28 @@ dge <- DGEList(counts=cases.tpm)
 dge <- calcNormFactors(dge, method = "TMM")
 ```
 
+### DEG by Aneurysm Size:
+
+```{r}
+keep <- !is.na(bio$aortc_diameter_mm2)
+
+dge2 <- dge[,keep]
+
+design <- model.matrix(~bio$aortc_diameter_mm2+tec$Date+tec$GC_Mean+tec$Batch)
+
+colnames(design) <- c("(Intercept)", "Size", "Date202220829", "GC_Mean", "Plate")
+
+v <- voom(dge2, design, plot = TRUE)
+
+# Limma Differential Expression:
+
+fit <- lmFit(v, design)
+fit <- eBayes(fit)
+
+# Obtain differentially expressed genes between all conditions:
+
+summary(decideTests(fit))
+```
 
 ### DEG by Age:
 
@@ -262,29 +313,6 @@ design <- model.matrix(~bio$SEXO+tec$Date+tec$GC_Mean+tec$Batch)
 colnames(design) <- c("(Intercept)", "Sex", "Date202220829", "GC_Mean", "Plate")
 
 v <- voom(dge, design, plot = TRUE)
-
-# Limma Differential Expression:
-
-fit <- lmFit(v, design)
-fit <- eBayes(fit)
-
-# Obtain differentially expressed genes between all conditions:
-
-summary(decideTests(fit))
-```
-
-### DEG by Aneurysm Size:
-
-```{r}
-keep <- !is.na(bio$aortc_diameter_mm2)
-
-dge2 <- dge[,keep]
-
-design <- model.matrix(~bio$aortc_diameter_mm2+tec$Date+tec$GC_Mean+tec$Batch)
-
-colnames(design) <- c("(Intercept)", "Size", "Date202220829", "GC_Mean", "Plate")
-
-v <- voom(dge2, design, plot = TRUE)
 
 # Limma Differential Expression:
 
