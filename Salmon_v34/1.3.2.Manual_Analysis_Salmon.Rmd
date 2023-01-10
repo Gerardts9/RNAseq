@@ -5,10 +5,13 @@ date: "2022-12-12"
 output: html_document
 ---
 
-```{r, warning=FALSE, message=FALSE, echo = FALSE}
-library(data.table);library(edgeR);library(tidyverse);library(openxlsx);library(preprocessCore);library(clusterProfiler);library("org.Hs.eg.db")
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+library(data.table);library(edgeR);library(tidyverse);library(openxlsx);library(preprocessCore);library("org.Hs.eg.db");library(stats)
+```
 
-library(stats)
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+# Slow loading.
+library(clusterProfiler)
 ```
 
 ### Apply TPM transformation to salmon counts:
