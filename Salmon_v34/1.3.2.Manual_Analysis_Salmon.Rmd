@@ -88,6 +88,13 @@ Results <- as.data.frame(cbind(Pvalue, Coef))
 Sig.Res <- Results[p.adjust(Pvalue, method = "bonferroni") < 0.05,]
 ```
 
+### Plot P-values:
+
+```{r}
+hist(Pvalue)
+```
+
+
 ### Obtain Gene_ID from Ensembl_ID, using annotation file:
 
 ```{r}
@@ -136,9 +143,6 @@ as.data.frame(gse)
 
 ```{r}
 fit <- gseaplot(gse, geneSetID = 1)
-
-
-
 ```
 
 
