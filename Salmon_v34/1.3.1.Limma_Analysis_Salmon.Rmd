@@ -48,9 +48,10 @@ table(tec$Case)
 
 Keep genes that have more than 50% of non-zero counts across all samples:
 ```{r}
-keep <- apply(counts.tpm, 1, function(x) sum(x == 0) <= nrow(counts.tpm)/2)
+keep <- apply(counts.tpm, 1, function(x) sum(x == 0) <= ncol(counts.tpm)/2)
 
 sum(keep) # 21,355
+sum(!keep) # 15,357
 
 counts.tpm <- counts.tpm[keep,]
 
@@ -82,6 +83,10 @@ colnames(design) <- c("(Intercept)", "AAACase", "Date202220829", "GC_Mean", "RIN
 
 ```{r}
 keep <- filterByExpr(dge, design)
+
+sum(keep) # 10,082
+sum(!keep) # 11,273
+
 dge <- dge[keep,,keep.lib.sizes=FALSE]
 ```
 
