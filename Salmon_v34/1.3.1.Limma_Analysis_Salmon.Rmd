@@ -84,8 +84,8 @@ colnames(design) <- c("(Intercept)", "AAACase", "Date202220829", "GC_Mean", "RIN
 ```{r}
 keep <- filterByExpr(dge, design)
 
-sum(keep) # 10,082
-sum(!keep) # 11,273
+paste0("We keep ", sum(keep), " genes")
+paste0("We remove ", sum(!keep), " genes")
 
 dge <- dge[keep,,keep.lib.sizes=FALSE]
 ```
