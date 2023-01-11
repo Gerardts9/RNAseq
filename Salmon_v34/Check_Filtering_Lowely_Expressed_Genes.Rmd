@@ -1,0 +1,112 @@
+---
+title: "Check filtering lowely expressed genes"
+author: "Gerard Temprano Sagrera"
+date: "2023-01-11"
+output: html_document
+---
+
+```{r, warning=FALSE, message=FALSE, echo = FALSE}
+library(data.table);library(edgeR);library(tidyverse);library(openxlsx);library(preprocessCore)
+```
+
+### Apply TPM transformation to salmon counts:
+
+```{r}
+# Load previously prepared salmon read counts:
+counts <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.salmon.txt")
+lengths <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Lengths.txt")
+lengths <- lengths$length/1000
+rnames <- counts$V1
+counts <- counts[,-1]
+rownames(counts) <- rnames
+
+r_tpm <- function(dfr,len)
+{
+  dfr1 <- sweep(dfr,1,len,`/`)
+  sc.f <- colSums(dfr1)/(10^6)
+  return(sweep(dfr1,2,sc.f,`/`))
+}
+
+counts.tpm <- as.data.frame(r_tpm(counts, lengths))
+```
+
+### Select only cases on technical variables:
+
+```{r}
+tec <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/Technical_CompleteV2.xlsx")
+```
+
+### Load Biological data to make comparissons:
+
+```{r}
+bio <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/20221115_Datos Pacientes.xlsx")
+
+# Create BMI:
+bio$BMI <- bio$Weight_Kg/((bio$Height_cm/100)^2)
+bio$BMI.di <- ifelse(bio$BMI > 25, 1, 0)
+bio$BMI.tri <- ifelse(bio$BMI > 30, 2, ifelse(bio$BMI > 25, 1, 0))
+```
+
+### Load Annotation file to change format names:
+
+```{r}
+ann <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Annotation/gencode.v34.annotation.fixed.gtf.gz")
+```
+
+### Apply quantile normalization to  counts:
+
+```{r}
+tpm.rows <- rownames(counts.tpm)
+tpm.cols <- colnames(counts.tpm)
+
+counts.tpm <- as.data.frame(normalize.quantiles(as.matrix(counts.tpm)))
+
+rownames(counts.tpm) <- tpm.rows
+colnames(counts.tpm) <- tpm.cols
+```
+
+### Filter lowely expressed genes with LIMMA protocol:
+
+```{r}
+dge <- DGEList(counts=counts.tpm)
+
+# Set "Control" to be the first level:
+AAA <- factor(x = c(rep("Case",97), rep("Control",44)),
+              levels=c("Control","Case"))
+
+# Batch and FC are not included because are highly correlated with AAA:
+
+design <- model.matrix(~AAA+tec$Date+tec$GC_Mean+tec$RIN+tec$FC+tec$Batch)
+
+colnames(design) <- c("(Intercept)", "AAACase", "Date202220829", "GC_Mean", "RIN","FC","Plate")
+
+keep <- filterByExpr(dge, design)
+paste("We keep", sum(keep), "genes with LIMMA filtering")
+paste("We remove", sum(!keep), "genes with LIMMA filtering")
+
+dge <- dge[keep,,keep.lib.sizes=FALSE]
+```
+
+### Filter lowely expressed genes manually:
+
+Remove genes that have more than 50% of zero counts across all samples:
+```{r}
+keep <- apply(counts.tpm, 1, function(x) sum(x == 0) <= 70)
+paste("We keep", sum(keep), "genes with manual filtering")
+paste("We remove", sum(!keep), "genes with manual filtering")
+
+counts.tpm2 <- counts.tpm[keep,]
+
+# Check how this filter affects cases and controls:
+cases.tpm2 <- counts.tpm2[,1:97]
+controls.tpm2 <- counts.tpm2[,98:ncol(counts.tpm2)]
+
+#sum(apply(cases.tpm, 1, function(x) sum(x == 0) <= 48)) # 21,197
+#sum(apply(controls.tpm, 1, function(x) sum(x == 0) <= 22)) # 20,499
+```
+
+
+
+
+
+
