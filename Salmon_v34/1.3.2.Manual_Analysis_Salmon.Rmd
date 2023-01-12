@@ -87,10 +87,8 @@ controls.tpm <- counts.tpm[,98:ncol(counts.tpm)]
 ### Manual Differential Expression:
 
 ```{r}
-Pvalue <- apply(counts.tpm, 1, function(x) summary(lm(x~tec$Case+tec$Date+tec$GC_Mean+tec$RIN))[4][[1]][2,4])
-Coef <- apply(counts.tpm, 1, function(x) summary(lm(x~tec$Case+tec$Date+tec$GC_Mean+tec$RIN))[4][[1]][2,1])
-
-#summary(lm(dge$counts[1,]~tec$Case+tec$Date+tec$GC_Mean+tec$RIN))[4][[1]][2,4]
+Pvalue <- apply(dge$counts, 1, function(x) summary(lm(x~tec$Case+tec$Date+tec$GC_Mean+tec$RIN))[4][[1]][2,4])
+Coef <- apply(dge$counts, 1, function(x) summary(lm(x~tec$Case+tec$Date+tec$GC_Mean+tec$RIN))[4][[1]][2,1])
 ```
 
 ### Plot P-values:
@@ -125,6 +123,7 @@ Results <- Results[!duplicated(Results$gene_name),]
 Results <- Results %>% remove_rownames %>% column_to_rownames(var="gene_name")
 
 Results[order(Results$pvalue), ][1:20,]
+nrow(Results[Results$fdr < 0.05,])
 ```
 
 ### Compare with previous results:
@@ -135,9 +134,9 @@ Sig.Res <- Results[Results$fdr <= 0.05,]
 Media <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Media.xlsx", colNames = FALSE)
 Adv <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Adventitia.xlsx", colNames = FALSE)
 
-length(intersect(Media$X2, rownames(Sig.Res))) # 3,864
+length(intersect(Media$X2, rownames(Sig.Res))) # 2,498
 
-length(intersect(Adv$X2, rownames(Sig.Res))) # 1,423
+length(intersect(Adv$X2, rownames(Sig.Res))) # 901
 ```
 
 ### Prepare list for DAVID:
