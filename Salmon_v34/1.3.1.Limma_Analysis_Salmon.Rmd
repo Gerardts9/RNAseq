@@ -44,25 +44,6 @@ cc[cc == 0] <- "Control"
 table(tec$Case)
 ```
 
-### Filter lowely expressed genes:
-
-Keep genes that have more than 50% of non-zero counts across all samples:
-```{r}
-keep <- apply(counts.tpm, 1, function(x) sum(x == 0) <= ncol(counts.tpm)/2)
-
-sum(keep) # 21,355
-sum(!keep) # 15,357
-
-counts.tpm <- counts.tpm[keep,]
-
-# Check how this filter affects cases and controls:
-cases.all.counts <- counts.tpm[,1:97]
-controls.all.counts <- counts.tpm[,98:ncol(counts.tpm)]
-
-#sum(apply(cases.all.counts, 1, function(x) sum(x == 0) <= 48)) # 21,197
-#sum(apply(controls.all.counts, 1, function(x) sum(x == 0) <= 22)) # 20,499
-```
-
 ### Convert TPM counts to DGElist object:
 
 ```{r}
