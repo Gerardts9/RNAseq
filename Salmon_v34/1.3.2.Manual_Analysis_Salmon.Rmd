@@ -54,38 +54,40 @@ cc[cc == 1] <- "Case"
 cc[cc == 0] <- "Control"
 ```
 
-### Filter lowely expressed genes using manual method:
 
-Keep genes that have more than 50% of non-zero counts across all samples:
+### Load Biological data to make comparissons:
+
 ```{r}
-#keep <- apply(counts.tpm, 1, function(x) sum(x == 0) <= 70)
-#paste("We keep", sum(keep),"genes") # 21,355
-#paste("We remove", sum(!keep), "genes") # 15,357
+bio <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/20221115_Datos Pacientes.xlsx")
+bio <- bio[2:nrow(bio),]
 
-#counts.tpm <- counts.tpm[keep,]
-
-# Check how this filter affects cases and controls:
-#cases.tpm <- counts.tpm[,1:97]
-#controls.tpm <- counts.tpm[,98:ncol(counts.tpm)]
-
-#sum(apply(cases.tpm, 1, function(x) sum(x == 0) <= 48)) # 21,197
-#sum(apply(controls.tpm, 1, function(x) sum(x == 0) <= 22)) # 20,499
+# Smoking:
+bio$Smoking2 <- ifelse(bio$Smoking == 0, 0, 1)
 ```
 
 ### Convert TPM counts to DGElist object:
 
 ```{r}
-dge <- DGEList(counts=counts.tpm)
+dge <- DGEList(counts = counts.tpm)
 
 # Set "Control" to be the first level:
-AAA <- factor(x = c(rep("Case",97), rep("Control",44)),
-              levels=c("Control","Case"))
+AAA <- factor(x = c(rep("Case", 97), rep("Control", 44)),
+              levels = c("Control", "Case"))
 
 # Batch and FC are not included because are highly correlated with AAA:
 
-design <- model.matrix(~AAA+tec$Date+tec$GC_Mean+tec$RIN+tec$FC+tec$Batch)
+design <-
+  model.matrix(~ AAA + tec$Date + tec$GC_Mean + tec$RIN + tec$FC + tec$Batch + bio$age)
 
-colnames(design) <- c("(Intercept)", "AAACase", "Date202220829", "GC_Mean", "RIN","FC","Plate")
+colnames(design) <-
+  c("(Intercept)",
+    "AAACase",
+    "Date202220829",
+    "GC_Mean",
+    "RIN",
+    "FC",
+    "Plate",
+    "Age")
 ```
 
 ### Remove lowely expressed genes using LIMMA:
@@ -93,8 +95,8 @@ colnames(design) <- c("(Intercept)", "AAACase", "Date202220829", "GC_Mean", "RIN
 ```{r}
 keep <- filterByExpr(dge, design)
 
-paste0("We keep ", sum(keep), " genes") # 10,117
-paste0("We remove ", sum(!keep), " genes") # 26,595
+paste0("We keep ", sum(keep), " genes") # 10,342
+paste0("We remove ", sum(!keep), " genes") # 26,370
 
 dge <- dge[keep,,keep.lib.sizes=FALSE]
 ```
@@ -114,14 +116,30 @@ colnames(counts.tpm) <- tpm.cols
 ### Manual Differential Expression:
 
 ```{r}
-Pvalue <- apply(dge$counts, 1, function(x) summary(lm(x~tec$Case+tec$Date+tec$GC_Mean+tec$RIN))[4][[1]][2,4])
-Coef <- apply(dge$counts, 1, function(x) summary(lm(x~tec$Case+tec$Date+tec$GC_Mean+tec$RIN))[4][[1]][2,1])
+Pvalue <-
+  apply(dge$counts, 1, function(x)
+    summary(
+      lm(
+        x ~ tec$Case + tec$Date + tec$GC_Mean + tec$RIN + tec$FC + tec$Batch + bio$age
+      )
+    )[4][[1]][2, 4])
+Coef <-
+  apply(dge$counts, 1, function(x)
+    summary(
+      lm(
+        x ~ tec$Case + tec$Date + tec$GC_Mean + tec$RIN + tec$FC + tec$Batch + bio$age
+      )
+    )[4][[1]][2, 1])
 ```
 
 ### Plot P-values:
 
 ```{r}
-hist(Pvalue)
+png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/GitHub/Hist_Cases_vs_Controls.png", height = 10000, width = 10000, res = 1200)
+hist(Pvalue, main = "", cex.main = 2)
+dev.off()
+
+hist(Pvalue, main = "Cases vs Controls", cex.main = 2)
 ```
 
 ### Create qvalue object:
@@ -141,7 +159,8 @@ Results <- data.frame(
   pvalue = Pvalue,
   qvalue = qobj$qvalues,
   fdr = p.adjust(Pvalue, method = "fdr"),
-  pi1 = 1-qobj$pi0
+  pi1 = 1-qobj$pi0,
+  Beta = Coef
 )
 
 Results <- merge(Results, ann[,c("gene_id","gene_name")], by.x = 0, by.y = "gene_id")
@@ -149,8 +168,74 @@ Results <- Results[,-1]
 Results <- Results[!duplicated(Results$gene_name),]
 Results <- Results %>% remove_rownames %>% column_to_rownames(var="gene_name")
 
-Results[order(Results$pvalue), ][1:20,]
+Results <- Results[order(Results$pvalue),]
+#write.xlsx(Results[order(Results$pvalue), ][1:10,],"C://Users/Gerard/Desktop/AAA/RNAseq/TopTable.xlsx", rowNames = TRUE )
+
 nrow(Results[Results$fdr < 0.05,])
+Results[1:50,]
+Results[Results$Beta > 0,]
+```
+
+### Plot residuals:
+
+#### TBXA2R:
+
+```{r}
+counts <- merge(dge$counts, ann[,c("gene_id","gene_name")], by.x = 0, by.y = "gene_id")
+counts <- counts[,-1]
+counts <- counts[!duplicated(counts$gene_name),]
+counts <- counts %>% remove_rownames %>% column_to_rownames(var="gene_name")
+
+counts <- as.matrix(counts)
+
+res <- resid(lm(counts["TBXA2R",] ~ tec$Date + tec$GC_Mean + tec$RIN + tec$FC + tec$Batch + bio$age))
+res <-  data.frame(Expression = res)
+
+p <- ggplot(res, aes(x = AAA, y = Expression, fill = AAA)) + geom_violin() + ggtitle("TBXA2R") +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 22),
+    legend.text = element_text(size = 18),
+    legend.title = element_text(size = 20),
+    axis.title.x = element_text(size = 20),
+    axis.title.y = element_text(size = 20),
+    axis.text.x = element_text(size = 20),
+    axis.text.y = element_text(size = 20)
+  ) +
+  scale_fill_discrete(name = "Status")
+
+p + scale_fill_manual(values=c("deepskyblue1", "tomato1"))
+```
+
+#### TPM3:
+
+```{r}
+counts <-
+  merge(dge$counts, ann[, c("gene_id", "gene_name")], by.x = 0, by.y = "gene_id")
+counts <- counts[, -1]
+counts <- counts[!duplicated(counts$gene_name), ]
+counts <-
+  counts %>% remove_rownames %>% column_to_rownames(var = "gene_name")
+
+counts <- as.matrix(counts)
+
+res <-
+  resid(lm(
+    counts["TPM3", ] ~ tec$Date + tec$GC_Mean + tec$RIN + tec$FC + tec$Batch + bio$age
+  ))
+res <-  data.frame(Expression = res)
+
+p <- ggplot(res, aes(x = AAA, y = Expression, fill = AAA)) + geom_violin() + ggtitle("TPM3") +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 22),
+    legend.text = element_text(size = 18),
+    legend.title = element_text(size = 20),
+    axis.title.x = element_text(size = 20),
+    axis.title.y = element_text(size = 20),
+    axis.text.x = element_text(size = 20),
+    axis.text.y = element_text(size = 20)
+  ) + scale_fill_discrete(name = "Status")
+
+p + scale_fill_manual(values = c("deepskyblue1", "tomato1"))
 ```
 
 ### Compare with previous results:
@@ -165,6 +250,7 @@ length(intersect(Media$X2, rownames(Sig.Res))) # 2,489
 
 length(intersect(Adv$X2, rownames(Sig.Res))) # 901
 ```
+
 
 ### Prepare list for DAVID:
 

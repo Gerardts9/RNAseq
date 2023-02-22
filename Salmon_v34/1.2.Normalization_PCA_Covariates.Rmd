@@ -156,9 +156,11 @@ plot(cumsum(my_pca$sdev^2 / sum(my_pca$sdev^2))[1:10], type="b", ylab = "Cummula
 ### PCA Plot:
 
 ```{r, include=TRUE}
+png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/GitHub/PCA_Plot.png")
 ggbiplot(my_pca, labels = colnames(dgeTpmAdjCpm), groups = as.factor(tec$Case), var.axes = F, obs.scale = 1, var.scale = 1) +
   scale_color_discrete(name = "") +
   theme(legend.direction = "horizontal", legend.position = "top")
+dev.off()
 ```
 
 ### Plot the histograms of the 9 smallest PC1:
@@ -177,11 +179,6 @@ ggbiplot(my_pca, labels = colnames(dgeTpmAdjCpm), groups = as.factor(tec$Case), 
 #for (i in 1:9) hist(as.numeric(dgeTpmAdjCpm[pca1.max[i], ]), main = paste0("Number ", i), xlab = "Gene expression")
 ```
 
-### Technical batches names:
-
-```{r, echo = FALSE}
-tec <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/Technical_CompleteV2.xlsx")
-```
 
 ### Covariates against PCA:
 
@@ -389,7 +386,11 @@ tec2 <- tec2[,2:ncol(tec2)]
 tec2$FC <- as.numeric(as.factor(tec2$FC))
 tec2$Date <- as.numeric(as.factor(tec2$Date))
 
-corrplot(cor(tec2), method = "square", type = "lower", order = "AOE", addCoef.col = "black", tl.pos = "ld", cl.pos = "n")
+png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/GitHub/Correlation_Technical.png")
+corrplot(cor(tec2), type = "lower", order = "AOE", addCoef.col = "black", tl.pos = "ld", cl.pos = "n")
+dev.off()
+
+corrplot(cor(tec2), type = "lower", order = "AOE", addCoef.col = "black", tl.pos = "ld", cl.pos = "n")
 ```
 
 GC Content Histogram
@@ -405,16 +406,16 @@ Extreme Gc Content values
 
 ```{r}
 # Left tail
-par(mfrow = c(3, 3))
-gc.min <- head(order(tec$GC_Mean), 9)
-for (i in 1:9) hist(as.numeric(dgeTpmAdjCpm[gc.min[i], ]), main = paste0("Number ", i), xlab = "Gene expression")
+#par(mfrow = c(3, 3))
+#gc.min <- head(order(tec$GC_Mean), 9)
+#for (i in 1:9) hist(as.numeric(dgeTpmAdjCpm[gc.min[i], ]), main = paste0("Number ", i), xlab = "Gene expression")
 ```
 
 ```{r}
 # Right tail
-par(mfrow = c(3, 3))
-gc.max <- head(order(tec$GC_Mean, decreasing = T), 9)
-for (i in 1:9) hist(as.numeric(dgeTpmAdjCpm[gc.max[i], ]), main = paste0("Number ", i), xlab = "Gene expression")
+#par(mfrow = c(3, 3))
+#gc.max <- head(order(tec$GC_Mean, decreasing = T), 9)
+#for (i in 1:9) hist(as.numeric(dgeTpmAdjCpm[gc.max[i], ]), main = paste0("Number ", i), xlab = "Gene expression")
 ```
 
 # Covariates influence in the PCA:
@@ -451,6 +452,15 @@ ggplot(df.all, aes(x = PC1, y = PC2)) +
 ### Flow Cell
 
 ```{r}
+png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/GitHub/Flow_Cell_PCA.png")
+ggplot(df.all, aes(x = PC1, y = PC2)) + 
+  theme_bw() + 
+  coord_fixed() + 
+  geom_point(aes(colour = FC, shape = as.factor(Case)), size = 2.5) +
+  ggtitle("Technical variable: Flow Cell", )+
+  theme(plot.title = element_text(hjust = 0.5))
+dev.off()
+
 ggplot(df.all, aes(x = PC1, y = PC2)) + 
   theme_bw() + 
   coord_fixed() + 
@@ -462,12 +472,14 @@ ggplot(df.all, aes(x = PC1, y = PC2)) +
 ### Flow Cell
 
 ```{r}
+png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/GitHub/Flow_Cell_PCA.png", res = 1200)
 ggplot(df.all, aes(x = PC1, y = PC2)) + 
   theme_bw() + 
   coord_fixed() + 
   geom_point(aes(colour = FC), pch = 20, size = 3) + 
   ggtitle("Technical variable: Flow Cell", )+
   theme(plot.title = element_text(hjust = 0.5))
+dev.off()
 ```
 
 ### Date

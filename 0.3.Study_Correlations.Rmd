@@ -13,6 +13,7 @@ library(openxlsx);library(ggplot2);library(corrplot);library(ggpubr);library(cor
 bio <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/20221115_Datos Pacientes.xlsx")
 bio <- bio[2:nrow(bio),]
 bio <- bio %>% remove_rownames %>% column_to_rownames(var="Muestra")
+table(bio$Status)
 ```
 
 ```{r}
@@ -27,22 +28,26 @@ tec <- tec %>% remove_rownames %>% column_to_rownames(var="SampleID")
 bio2 <- bio[,c("Status","SEXO","age","TIPOANEURISMA","symptomatic","Height_cm","Weight_Kg","Smoking","other_aneurysm",
                 "aortc_diameter_mm")]
 
+names(bio2) <- c("STATUS","SEX","AGE","TYPE","SYMPTOMS","HEIGHT","WEIGHT","SMOKING","O.ANEURYSM","DIAMATER")
+
 # Transform to numeric:
-bio2$Status <- as.numeric(as.factor(bio2$Status))
-bio2$SEXO <- as.numeric(bio2$SEXO)
-bio2$TIPOANEURISMA <- as.numeric(bio2$TIPOANEURISMA)
-bio2$symptomatic <- as.numeric(bio2$symptomatic)
-bio2$Smoking <- as.numeric(bio2$Smoking)
-bio2$other_aneurysm <- as.numeric(bio2$other_aneurysm)
+bio2$STATUS <- as.numeric(as.factor(bio2$STATUS))
+bio2$SEX <- as.numeric(bio2$SEX)
+bio2$TYPE <- as.numeric(bio2$TYPE)
+bio2$SYMPTOMS <- as.numeric(bio2$SYMPTOMS)
+bio2$SMOKING <- as.numeric(bio2$SMOKING)
+bio2$O.ANEURYSM <- as.numeric(bio2$O.ANEURYSM)
 ```
 
 
 ```{r}
 tec2 <-  tec[ ,!names(tec) %in% c("Seq_ID","Case")]
 
+names(tec2) <- c("FC","DATE","BATCH","GC MEAN","RIN","DV200","QUBIT")
+
 # Transform to numeric:
 tec2$FC <- as.numeric(as.factor(tec2$FC))
-tec2$Date <- as.numeric(as.factor(tec2$Date))
+tec2$DATE <- as.numeric(as.factor(tec2$DATE))
 ```
 
 ```{r}
@@ -82,11 +87,11 @@ testRes <- cor.mtest(all, conf.level = 0.95)
 M[is.na(M)] <- 0
 testRes$p[is.na(testRes$p)] <- 1
 
-pdf(file = "C://Users/Gerard/Desktop/AAA/RNAseq/GitHub/Correlation_Plot_All.pdf")
-corrplot(M, p.mat = testRes$p, sig.level = 0.05, type = "lower", insig = "blank", addCoef.col = "black", number.cex = 0.6)
-dev.off()
+#png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/GitHub/Correlation_Plot_All.png", height = 10000, width = 10000, res = 1200)
+#corrplot(M, p.mat = testRes$p, sig.level = 0.05, type = "lower", insig = "blank", tl.cex = 1.75)
+#dev.off()
 
-corrplot(M, p.mat = testRes$p, sig.level = 0.05, type = "lower", insig = "blank", addCoef.col = "black", number.cex = 0.6)
+corrplot(M, p.mat = testRes$p, sig.level = 0.05, type = "lower", insig = "blank")
 ```
 
 - Type of aneurysm, height, weight, other aneurysm and size are only available for cases.
@@ -94,7 +99,7 @@ corrplot(M, p.mat = testRes$p, sig.level = 0.05, type = "lower", insig = "blank"
 - Status with Sex: There are more male among cases.
 
 ```{r}
-tab <- as.data.frame(prop.table(table(bio2$Status, bio2$SEXO)))
+tab <- as.data.frame(prop.table(table(bio2$STATUS, bio2$SEX)))
 
 ggplot(tab, aes(x = Var1, y = Freq, fill=Var2)) + geom_col() + labs(x = "Status", fill = "Sex") +
   scale_x_discrete(breaks = c(1,2), labels = c("Case","Control")) +
@@ -104,7 +109,7 @@ ggplot(tab, aes(x = Var1, y = Freq, fill=Var2)) + geom_col() + labs(x = "Status"
 - Status with Age: Cases are older.
 
 ```{r}
-ggboxplot(bio2, x = "Status", y = "age") +
+ggboxplot(bio2, x = "STATUS", y = "AGE") +
   geom_boxplot() +
   stat_compare_means(method = "t.test", label.y = 100) +
   scale_x_discrete(breaks = c(1,2), labels = c("Case","Control"))
@@ -114,7 +119,7 @@ ggboxplot(bio2, x = "Status", y = "age") +
 - Status with Smoking: There are less smokers in controls.
 
 ```{r}
-tab <- as.data.frame(prop.table(table(bio2$Status, bio2$Smoking)))
+tab <- as.data.frame(prop.table(table(bio2$STATUS, bio2$SMOKING)))
 
 ggplot(tab, aes(x = Var1, y = Freq, fill=Var2)) + geom_col() + labs(x = "Status", fill = "Smoking") +
   scale_x_discrete(breaks = c("1","2"), labels = c("Case","Control")) +
@@ -125,7 +130,7 @@ ggplot(tab, aes(x = Var1, y = Freq, fill=Var2)) + geom_col() + labs(x = "Status"
 - Sex with Smoking: There are more smokers among men (There are more cases in men).
 
 ```{r}
-tab <- as.data.frame(prop.table(table(bio2$SEXO, bio2$Smoking)))
+tab <- as.data.frame(prop.table(table(bio2$SEX, bio2$SMOKING)))
 
 ggplot(tab, aes(x = Var1, y = Freq, fill=Var2)) + geom_col() + labs(x = "Sex", fill = "Smoking Status") +
   scale_x_discrete(breaks = c("1","2"), labels = c("Man","Woman")) +
@@ -135,7 +140,7 @@ ggplot(tab, aes(x = Var1, y = Freq, fill=Var2)) + geom_col() + labs(x = "Sex", f
 - Age with Weight: Weight reduced with age.
 
 ```{r, warning=FALSE}
-ggscatter(bio2, x = "age", y = "Weight_Kg",
+ggscatter(bio2, x = "AGE", y = "WEIGHT",
           add = "reg.line") +
   stat_cor(method = "pearson")
 ```
@@ -143,18 +148,18 @@ ggscatter(bio2, x = "age", y = "Weight_Kg",
 - Type of Aneurysm with Symptoms: There are more symptoms with Atherosclerotic aneurysms.
 
 ```{r}
-tab <- as.data.frame(prop.table(table(bio2$TIPOANEURISMA, bio2$symptomatic)))
+tab <- as.data.frame(prop.table(table(bio2$TYPE, bio2$SYMPTOMS)))
 
 ggplot(tab, aes(x = Var1, y = Freq, fill=Var2)) + geom_col() + labs(x = "Type", fill = "Symptoms") +
   scale_x_discrete(breaks = c("1","2"), labels = c("Atherosclerotic","Inflammatory")) +
-  scale_fill_discrete(breaks = c("0","1"), labels = c("Yes", "No"))
+  scale_fill_discrete(breaks = c("0","1"), labels = c("No", "Yes"))
 ```
 
 
 - Type with Aortic Diameter: Inflammatory aneurysms have bigger diameters.
 
 ```{r}
-ggboxplot(subset(bio2, !is.na(TIPOANEURISMA)), x = "TIPOANEURISMA", y = "aortc_diameter_mm") +
+ggboxplot(subset(bio2, !is.na(TYPE)), x = "TYPE", y = "DIAMATER") +
   geom_boxplot() +
   stat_compare_means(method = "t.test", label.y = 110) +
   scale_x_discrete(breaks = c(1,2), labels = c("Atherosclerotic","Inflammatory"))
@@ -163,7 +168,7 @@ ggboxplot(subset(bio2, !is.na(TIPOANEURISMA)), x = "TIPOANEURISMA", y = "aortc_d
 - Symptoms with Smoking:
 
 ```{r}
-tab <- as.data.frame(prop.table(table(bio2$symptomatic, bio2$Smoking)))
+tab <- as.data.frame(prop.table(table(bio2$SYMPTOMS, bio2$SMOKING)))
 
 ggplot(tab, aes(x = Var1, y = Freq, fill=Var2)) + geom_col() + labs(x = "Symptomatic", fill = "Smoking Status") +
   scale_x_discrete(breaks = c("0","1"), labels = c("Asymptomatic","Symptomatic")) +
@@ -210,12 +215,33 @@ testRes <- cor.mtest(all.cases, conf.level = 0.95)
 M[is.na(M)] <- 0
 testRes$p[is.na(testRes$p)] <- 1
 
-pdf(file = "C://Users/Gerard/Desktop/AAA/RNAseq/GitHub/Correlation_Plot_Cases.pdf")
-corrplot(M, p.mat = testRes$p, sig.level = 0.05, type = "lower", insig = "blank", addCoef.col = "black", number.cex = 0.6)
+png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/GitHub/Correlation_Plot_Cases.png", height = 10000, width = 10000, res = 1200)
+corrplot(M, p.mat = testRes$p, sig.level = 0.05, type = "lower", insig = "blank")
 dev.off()
 
-corrplot(M, p.mat = testRes$p, sig.level = 0.05, type = "lower", insig = "blank", addCoef.col = "black", number.cex = 0.6)
+corrplot(M, p.mat = testRes$p, sig.level = 0.05, type = "lower", insig = "blank")
 ```
+
+```{r}
+# Filter only biological samples:
+filter.cases <-  all.cases[ ,c("SEXO","age","TIPOANEURISMA","symptomatic","Height_cm","Weight_Kg","Smoking","other_aneurysm","aortc_diameter_mm")]
+```
+
+
+```{r}
+M <- cor(filter.cases, use = "pairwise.complete.obs")
+testRes <- cor.mtest(filter.cases, conf.level = 0.95)
+
+M[is.na(M)] <- 0
+testRes$p[is.na(testRes$p)] <- 1
+
+png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/GitHub/Correlation_Plot_Cases_filter.png", height = 10000, width = 10000, res = 1200)
+corrplot(M, p.mat = testRes$p, sig.level = 0.05, type = "lower", insig = "blank", tl.cex = 2)
+dev.off()
+
+corrplot(M, p.mat = testRes$p, sig.level = 0.05, type = "lower", insig = "blank")
+```
+
 
 - Age with Weight: Weight reduces with age.
 

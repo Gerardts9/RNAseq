@@ -39,12 +39,20 @@ cc[cc == 1] <- "Case"
 cc[cc == 0] <- "Control"
 ```
 
+### Load Biological table:
+
+```{r}
+bio <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/20221115_Datos Pacientes.xlsx")
+bio <- bio[2:nrow(bio),]
+bio <- bio[bio$Status == "Case",]
+```
+
 ### Filter lowely expressed genes:
 
 Keep genes that have more than 50% of non-zero counts across all samples:
 ```{r}
 keep <- apply(counts.tpm, 1, function(x) sum(x == 0) <= 70)
-sum(keep) # 21,355
+#sum(keep) # 21,355
 
 counts.tpm <- counts.tpm[keep,]
 
@@ -52,8 +60,8 @@ counts.tpm <- counts.tpm[keep,]
 cases.tpm <- counts.tpm[,1:97]
 controls.tpm <- counts.tpm[,98:ncol(counts.tpm)]
 
-sum(apply(cases.tpm, 1, function(x) sum(x == 0) <= 48)) # 21,197
-sum(apply(controls.tpm, 1, function(x) sum(x == 0) <= 22)) # 20,499
+#sum(apply(cases.tpm, 1, function(x) sum(x == 0) <= 48)) # 21,197
+#sum(apply(controls.tpm, 1, function(x) sum(x == 0) <= 22)) # 20,499
 ```
 
 ### Keep genes that have more than 50% of non-zero counts across cases and across controls:
@@ -101,7 +109,7 @@ summaryPca <- summary(my_pca)
 ```{r, include=TRUE}
 barplot((my_pca$sdev^2 / sum(my_pca$sdev^2))[1:20], names.arg = 1:20,  
         xlab = "PC #", ylab = "Amount of explained variance per PC",
-        ylim=c(0,0.4), las=2, cex.names=.8)
+        ylim=c(0,0.2), las=2, cex.names=.8)
 ```
 
 ```{r, include=TRUE}
@@ -111,7 +119,7 @@ plot(cumsum(my_pca$sdev^2 / sum(my_pca$sdev^2))[1:10], type="b", ylab = "Cummula
 ### PCA Plot Controls:
 
 ```{r, include=TRUE}
-ggbiplot(my_pca, labels = colnames(dgeTpmAdjCpm), var.axes = F, obs.scale = 1, var.scale = 1) +
+ggbiplot(my_pca, var.axes = F, obs.scale = 1, var.scale = 1) +
   scale_color_discrete(name = "") +
   theme(legend.direction = "horizontal", legend.position = "top")
 ```
@@ -141,7 +149,7 @@ tec <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/Technical_CompleteV
 tec <- tec[1:97,]
 ```
 
-### Covariates against PCA:
+## Technical Covariates against PCA:
 
 #### Date:
 
@@ -160,11 +168,11 @@ rownames(dfPvalue) <- paste0("PC", 1:10)
 dfPvalue$pvalue <- as.numeric(format(dfPvalue$pvalue, digits = 3))
 dfPvalue$adjR2 <- as.numeric(format(dfPvalue$adjR2, digits = 3))
 
-ggplot(boxplotMatrixMelt, aes(x=as.factor(covariate), y=value)) +
-  geom_boxplot() +
-  theme_bw(base_size = 16) +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  facet_wrap(~variable,  ncol=2)
+#ggplot(boxplotMatrixMelt, aes(x=as.factor(covariate), y=value)) +
+#  geom_boxplot() +
+#  theme_bw(base_size = 16) +
+#  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+#  facet_wrap(~variable,  ncol=2)
 ```
 
 ```{r}
@@ -192,11 +200,11 @@ rownames(dfPvalue) <- paste0("PC", 1:10)
 dfPvalue$pvalue <- as.numeric(format(dfPvalue$pvalue, digits = 3))
 dfPvalue$adjR2 <- as.numeric(format(dfPvalue$adjR2, digits = 3))
 
-ggplot(boxplotMatrixMelt, aes(x=as.factor(covariate), y=value)) +
-  geom_boxplot() +
-  theme_bw(base_size = 16) +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  facet_wrap(~variable,  ncol=2)
+#ggplot(boxplotMatrixMelt, aes(x=as.factor(covariate), y=value)) +
+#  geom_boxplot() +
+#  theme_bw(base_size = 16) +
+#  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+#  facet_wrap(~variable,  ncol=2)
 ```
 
 ```{r}
@@ -223,11 +231,11 @@ rownames(dfPvalue) <- paste0("PC", 1:10)
 dfPvalue$pvalue <- as.numeric(format(dfPvalue$pvalue, digits = 3))
 dfPvalue$adjR2 <- as.numeric(format(dfPvalue$adjR2, digits = 3))
 
-ggplot(boxplotMatrixMelt, aes(x=as.factor(covariate), y=value)) +
-  geom_boxplot() +
-  theme_bw(base_size = 16) +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  facet_wrap(~variable,  ncol=2)
+#ggplot(boxplotMatrixMelt, aes(x=as.factor(covariate), y=value)) +
+#  geom_boxplot() +
+#  theme_bw(base_size = 16) +
+#  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+#  facet_wrap(~variable,  ncol=2)
 ```
 
 ```{r}
@@ -254,11 +262,11 @@ rownames(dfPvalue) <- paste0("PC", 1:10)
 dfPvalue$pvalue <- as.numeric(format(dfPvalue$pvalue, digits = 3))
 dfPvalue$adjR2 <- as.numeric(format(dfPvalue$adjR2, digits = 3))
 
-ggplot(boxplotMatrixMelt, aes(x=as.factor(covariate), y=value)) +
-  geom_boxplot() +
-  theme_bw(base_size = 16) +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  facet_wrap(~variable,  ncol=2)
+#ggplot(boxplotMatrixMelt, aes(x=as.factor(covariate), y=value)) +
+#  geom_boxplot() +
+#  theme_bw(base_size = 16) +
+#  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+#  facet_wrap(~variable,  ncol=2)
 ```
 
 ```{r}
@@ -268,16 +276,273 @@ dfPvalue$covariate <- ifelse(dfPvalue$pvalue < 0.05, paste0(dfPvalue$covariate, 
 Correlations <- cbind(Correlations, dfPvalue[,-1])
 ```
 
+## Biological covariates against PCA:
+
+### Sex:
+
+```{r}
+covariate <- "SEXO"
+
+boxplotMatrix <- cbind(bio, my_pca$x[,1:10])
+boxplotMatrixMelt <- data.frame(reshape2::melt(boxplotMatrix[,c(covariate, paste0("PC", 1:4))], id.vars=covariate))
+colnames(boxplotMatrixMelt)[1] <- "covariate"
+
+dfPvalue <- as.data.frame(matrix(unlist(lapply(paste0("PC", 1:10), function(x) c(anova(lm(as.formula(paste0(x, "~1+", covariate)), data=boxplotMatrix))[5][[1]][1], summary(lm(as.formula(paste0(x, "~1+", covariate)), data = boxplotMatrix))[9]))), ncol=2, byrow = T))
+
+colnames(dfPvalue) <- c("pvalue", "adjR2")
+rownames(dfPvalue) <- paste0("PC", 1:10)
+
+dfPvalue$pvalue <- as.numeric(format(dfPvalue$pvalue, digits = 3))
+dfPvalue$adjR2 <- as.numeric(format(dfPvalue$adjR2, digits = 3))
+
+#ggplot(boxplotMatrixMelt, aes(x=as.factor(covariate), y=value)) +
+#  geom_boxplot() +
+#  theme_bw(base_size = 16) +
+#  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+#  facet_wrap(~variable,  ncol=2)
+```
+
+```{r}
+colnames(dfPvalue) <- c("pvalue", "covariate")
+dfPvalue$covariate <- ifelse(dfPvalue$pvalue < 0.05, paste0(dfPvalue$covariate, " ***"), dfPvalue$covariate)
+
+Correlations <- cbind(Correlations, dfPvalue[,-1])
+```
+
+### Age:
+
+```{r}
+covariate <- "age"
+
+boxplotMatrix <- cbind(bio, my_pca$x[,1:10])
+boxplotMatrixMelt <- data.frame(reshape2::melt(boxplotMatrix[,c(covariate, paste0("PC", 1:4))], id.vars=covariate))
+colnames(boxplotMatrixMelt)[1] <- "covariate"
+
+dfPvalue <- as.data.frame(matrix(unlist(lapply(paste0("PC", 1:10), function(x) c(anova(lm(as.formula(paste0(x, "~1+", covariate)), data=boxplotMatrix))[5][[1]][1], summary(lm(as.formula(paste0(x, "~1+", covariate)), data = boxplotMatrix))[9]))), ncol=2, byrow = T))
+
+colnames(dfPvalue) <- c("pvalue", "adjR2")
+rownames(dfPvalue) <- paste0("PC", 1:10)
+
+dfPvalue$pvalue <- as.numeric(format(dfPvalue$pvalue, digits = 3))
+dfPvalue$adjR2 <- as.numeric(format(dfPvalue$adjR2, digits = 3))
+
+#ggplot(boxplotMatrixMelt, aes(x=as.factor(covariate), y=value)) +
+#  geom_boxplot() +
+#  theme_bw(base_size = 16) +
+#  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+#  facet_wrap(~variable,  ncol=2)
+```
+
+```{r}
+colnames(dfPvalue) <- c("pvalue", "covariate")
+dfPvalue$covariate <- ifelse(dfPvalue$pvalue < 0.05, paste0(dfPvalue$covariate, " ***"), dfPvalue$covariate)
+
+Correlations <- cbind(Correlations, dfPvalue[,-1])
+```
+
+
+### Type of aneurysm:
+
+```{r}
+covariate <- "TIPOANEURISMA"
+
+boxplotMatrix <- cbind(bio, my_pca$x[,1:10])
+boxplotMatrixMelt <- data.frame(reshape2::melt(boxplotMatrix[,c(covariate, paste0("PC", 1:4))], id.vars=covariate))
+colnames(boxplotMatrixMelt)[1] <- "covariate"
+
+dfPvalue <- as.data.frame(matrix(unlist(lapply(paste0("PC", 1:10), function(x) c(anova(lm(as.formula(paste0(x, "~1+", covariate)), data=boxplotMatrix))[5][[1]][1], summary(lm(as.formula(paste0(x, "~1+", covariate)), data = boxplotMatrix))[9]))), ncol=2, byrow = T))
+
+colnames(dfPvalue) <- c("pvalue", "adjR2")
+rownames(dfPvalue) <- paste0("PC", 1:10)
+
+dfPvalue$pvalue <- as.numeric(format(dfPvalue$pvalue, digits = 3))
+dfPvalue$adjR2 <- as.numeric(format(dfPvalue$adjR2, digits = 3))
+
+#ggplot(boxplotMatrixMelt, aes(x=as.factor(covariate), y=value)) +
+#  geom_boxplot() +
+#  theme_bw(base_size = 16) +
+#  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+#  facet_wrap(~variable,  ncol=2)
+```
+
+```{r}
+colnames(dfPvalue) <- c("pvalue", "covariate")
+dfPvalue$covariate <- ifelse(dfPvalue$pvalue < 0.05, paste0(dfPvalue$covariate, " ***"), dfPvalue$covariate)
+
+Correlations <- cbind(Correlations, dfPvalue[,-1])
+```
+
+### Height:
+
+```{r}
+covariate <- "Height_cm"
+
+boxplotMatrix <- cbind(bio, my_pca$x[,1:10])
+boxplotMatrixMelt <- data.frame(reshape2::melt(boxplotMatrix[,c(covariate, paste0("PC", 1:4))], id.vars=covariate))
+colnames(boxplotMatrixMelt)[1] <- "covariate"
+
+dfPvalue <- as.data.frame(matrix(unlist(lapply(paste0("PC", 1:10), function(x) c(anova(lm(as.formula(paste0(x, "~1+", covariate)), data=boxplotMatrix))[5][[1]][1], summary(lm(as.formula(paste0(x, "~1+", covariate)), data = boxplotMatrix))[9]))), ncol=2, byrow = T))
+
+colnames(dfPvalue) <- c("pvalue", "adjR2")
+rownames(dfPvalue) <- paste0("PC", 1:10)
+
+dfPvalue$pvalue <- as.numeric(format(dfPvalue$pvalue, digits = 3))
+dfPvalue$adjR2 <- as.numeric(format(dfPvalue$adjR2, digits = 3))
+
+#ggplot(boxplotMatrixMelt, aes(x=as.factor(covariate), y=value)) +
+#  geom_boxplot() +
+#  theme_bw(base_size = 16) +
+#  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+#  facet_wrap(~variable,  ncol=2)
+```
+
+```{r}
+colnames(dfPvalue) <- c("pvalue", "covariate")
+dfPvalue$covariate <- ifelse(dfPvalue$pvalue < 0.05, paste0(dfPvalue$covariate, " ***"), dfPvalue$covariate)
+
+Correlations <- cbind(Correlations, dfPvalue[,-1])
+```
+
+### Weight:
+
+```{r}
+covariate <- "Weight_Kg"
+
+boxplotMatrix <- cbind(bio, my_pca$x[,1:10])
+boxplotMatrixMelt <- data.frame(reshape2::melt(boxplotMatrix[,c(covariate, paste0("PC", 1:4))], id.vars=covariate))
+colnames(boxplotMatrixMelt)[1] <- "covariate"
+
+dfPvalue <- as.data.frame(matrix(unlist(lapply(paste0("PC", 1:10), function(x) c(anova(lm(as.formula(paste0(x, "~1+", covariate)), data=boxplotMatrix))[5][[1]][1], summary(lm(as.formula(paste0(x, "~1+", covariate)), data = boxplotMatrix))[9]))), ncol=2, byrow = T))
+
+colnames(dfPvalue) <- c("pvalue", "adjR2")
+rownames(dfPvalue) <- paste0("PC", 1:10)
+
+dfPvalue$pvalue <- as.numeric(format(dfPvalue$pvalue, digits = 3))
+dfPvalue$adjR2 <- as.numeric(format(dfPvalue$adjR2, digits = 3))
+
+#ggplot(boxplotMatrixMelt, aes(x=as.factor(covariate), y=value)) +
+#  geom_boxplot() +
+#  theme_bw(base_size = 16) +
+#  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+#  facet_wrap(~variable,  ncol=2)
+```
+
+```{r}
+colnames(dfPvalue) <- c("pvalue", "covariate")
+dfPvalue$covariate <- ifelse(dfPvalue$pvalue < 0.05, paste0(dfPvalue$covariate, " ***"), dfPvalue$covariate)
+
+Correlations <- cbind(Correlations, dfPvalue[,-1])
+```
+
+### Smoking:
+
+```{r}
+covariate <- "Smoking"
+
+boxplotMatrix <- cbind(bio, my_pca$x[,1:10])
+boxplotMatrixMelt <- data.frame(reshape2::melt(boxplotMatrix[,c(covariate, paste0("PC", 1:4))], id.vars=covariate))
+colnames(boxplotMatrixMelt)[1] <- "covariate"
+
+dfPvalue <- as.data.frame(matrix(unlist(lapply(paste0("PC", 1:10), function(x) c(anova(lm(as.formula(paste0(x, "~1+", covariate)), data=boxplotMatrix))[5][[1]][1], summary(lm(as.formula(paste0(x, "~1+", covariate)), data = boxplotMatrix))[9]))), ncol=2, byrow = T))
+
+colnames(dfPvalue) <- c("pvalue", "adjR2")
+rownames(dfPvalue) <- paste0("PC", 1:10)
+
+dfPvalue$pvalue <- as.numeric(format(dfPvalue$pvalue, digits = 3))
+dfPvalue$adjR2 <- as.numeric(format(dfPvalue$adjR2, digits = 3))
+
+#ggplot(boxplotMatrixMelt, aes(x=as.factor(covariate), y=value)) +
+#  geom_boxplot() +
+#  theme_bw(base_size = 16) +
+#  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+#  facet_wrap(~variable,  ncol=2)
+```
+
+```{r}
+colnames(dfPvalue) <- c("pvalue", "covariate")
+dfPvalue$covariate <- ifelse(dfPvalue$pvalue < 0.05, paste0(dfPvalue$covariate, " ***"), dfPvalue$covariate)
+
+Correlations <- cbind(Correlations, dfPvalue[,-1])
+```
+
+### Aortic Diameter:
+
+```{r}
+covariate <- "aortc_diameter_mm"
+
+boxplotMatrix <- cbind(bio, my_pca$x[,1:10])
+boxplotMatrixMelt <- data.frame(reshape2::melt(boxplotMatrix[,c(covariate, paste0("PC", 1:4))], id.vars=covariate))
+colnames(boxplotMatrixMelt)[1] <- "covariate"
+
+dfPvalue <- as.data.frame(matrix(unlist(lapply(paste0("PC", 1:10), function(x) c(anova(lm(as.formula(paste0(x, "~1+", covariate)), data=boxplotMatrix))[5][[1]][1], summary(lm(as.formula(paste0(x, "~1+", covariate)), data = boxplotMatrix))[9]))), ncol=2, byrow = T))
+
+colnames(dfPvalue) <- c("pvalue", "adjR2")
+rownames(dfPvalue) <- paste0("PC", 1:10)
+
+dfPvalue$pvalue <- as.numeric(format(dfPvalue$pvalue, digits = 3))
+dfPvalue$adjR2 <- as.numeric(format(dfPvalue$adjR2, digits = 3))
+
+#ggplot(boxplotMatrixMelt, aes(x=as.factor(covariate), y=value)) +
+#  geom_boxplot() +
+#  theme_bw(base_size = 16) +
+#  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+#  facet_wrap(~variable,  ncol=2)
+```
+
+```{r}
+colnames(dfPvalue) <- c("pvalue", "covariate")
+dfPvalue$covariate <- ifelse(dfPvalue$pvalue < 0.05, paste0(dfPvalue$covariate, " ***"), dfPvalue$covariate)
+
+Correlations <- cbind(Correlations, dfPvalue[,-1])
+```
+
+
+### Other Aneurysms:
+
+```{r}
+covariate <- "other_aneurysm"
+
+boxplotMatrix <- cbind(bio, my_pca$x[,1:10])
+boxplotMatrixMelt <- data.frame(reshape2::melt(boxplotMatrix[,c(covariate, paste0("PC", 1:4))], id.vars=covariate))
+colnames(boxplotMatrixMelt)[1] <- "covariate"
+
+dfPvalue <- as.data.frame(matrix(unlist(lapply(paste0("PC", 1:10), function(x) c(anova(lm(as.formula(paste0(x, "~1+", covariate)), data=boxplotMatrix))[5][[1]][1], summary(lm(as.formula(paste0(x, "~1+", covariate)), data = boxplotMatrix))[9]))), ncol=2, byrow = T))
+
+colnames(dfPvalue) <- c("pvalue", "adjR2")
+rownames(dfPvalue) <- paste0("PC", 1:10)
+
+dfPvalue$pvalue <- as.numeric(format(dfPvalue$pvalue, digits = 3))
+dfPvalue$adjR2 <- as.numeric(format(dfPvalue$adjR2, digits = 3))
+
+#ggplot(boxplotMatrixMelt, aes(x=as.factor(covariate), y=value)) +
+#  geom_boxplot() +
+#  theme_bw(base_size = 16) +
+#  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+#  facet_wrap(~variable,  ncol=2)
+```
+
+```{r}
+colnames(dfPvalue) <- c("pvalue", "covariate")
+dfPvalue$covariate <- ifelse(dfPvalue$pvalue < 0.05, paste0(dfPvalue$covariate, " ***"), dfPvalue$covariate)
+
+Correlations <- cbind(Correlations, dfPvalue[,-1])
+```
+
+
+
 #### Prepare and save Correlations table:
 
 ```{r}
 rownames(Correlations) <- paste0("PC",1:10)
-colnames(Correlations) <- c("Date","Batch","GC_Mean","RIN")
+colnames(Correlations) <- c("Date","Batch","GC Mean","RIN","Sex","Age","Type of Aneurysm","Height","Weight",
+                            "Smoking","Aortic Diameter"," Other Aneurysm")
 
 #write.xlsx(as.data.frame(Correlations), "C://Users/Gerard/Desktop/AAA/RNAseq/Correlation_Cases.xlsx", sep = "\t", rowNames = T)
 ```
 
-Recommended technical variables: Date, Batch, GC_Mean.
+1. Recommended technical Variables for Cases: Date, Batch, GC_Mean
+
+2. Recommended Biological variables for cases:
 
 ```{r}
 tec2 <- tec %>% remove_rownames %>% column_to_rownames(var="SampleID")
