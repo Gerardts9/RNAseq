@@ -10,38 +10,11 @@ library(data.table);library(edgeR);library(tidyverse);library(openxlsx)
 library(preprocessCore)
 ```
 
-### Make a Count Matrix from the RSEM results:
-
-```{r}
-ff <- list.files("/home/gerard/AAA/Results/",pattern = "*.rsem.genes.results", recursive = T, full.names = T)
-
-count.matrix <- c()
-
-# Loop through all *.rsem.genes.results files obtained from RSEM.
-for (i in seq_along(ff)) {
-  if (i == 1) {
-    res <- fread(ff[i], select = c("gene_id", "TPM"))
-    id <- sub(".*/([^/]+)/[^/]+\\.\\w+$", "\\1", ff[i])
-    names(res)[names(res) == "TPM"] <- id
-    count.matrix <- cbind(count.matrix, res)
-  } else {
-    res <- fread(ff[i], select = c("TPM"))
-    id <- sub(".*/([^/]+)/[^/]+\\.\\w+$", "\\1", ff[i])
-    names(res)[names(res) == "TPM"] <- id
-    count.matrix <- cbind(count.matrix, res)
-  }
-}
-
-if (ncol(count.matrix) != 142) {warning("Not all samples have been analyzed")}
-
-count.matrix <- count.matrix %>% remove_rownames %>% column_to_rownames(var="gene_id")
-```
-
 
 ```{r}
 # Use the annotation file to select among the quantified genes:
 ann <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Annotation/gencode.v26.annotation.fixed.gtf.gz")
-ann <- fread("/home/gerard/RNAseq/GTEx/gencode.v26.annotation.fixed.gtf.gz")
+ann <- fread("/home/gerard/AAA/refs/gencode.v26.annotation.fixed.gtf.gz")
 count.matrix2 <- count.matrix[rownames(count.matrix) %in% ann$gene_id,]
 
 paste("From the", nrow(ann), "filtered genes present in the annotation file,", nrow(count.matrix2), "have been quantified")
