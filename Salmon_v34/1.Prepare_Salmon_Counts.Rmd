@@ -38,8 +38,8 @@ dim(counts)
 
 identical(genes2$gene_id,rownames(counts))
 
-#fwrite(genes2[,c("gene_id","length")], "C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Lengths.txt", sep = "\t")
-#fwrite(counts, "C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.salmon.txt", sep = "\t", row.names = T)
+fwrite(genes2[,c("gene_id","length")], "C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Lengths.txt", sep = "\t")
+fwrite(counts, "C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.salmon.txt", sep = "\t", row.names = T)
 ```
 
 
