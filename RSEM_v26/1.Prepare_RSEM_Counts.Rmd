@@ -40,11 +40,17 @@ ann <- fread("/home/gerard/AAA/refs/gencode.v26.annotation.fixed.gtf.gz")
 count.matrix <- count.matrix[rownames(count.matrix) %in% ann$gene_id,]
 ```
 
-
+# Change IDs format:
 ```{r}
-ann <- ann[ann$gene_id %in% rownames(count.matrix),]
+tec <- read.xlsx("/home/gerard/AAA/Tables/Technical_Complete.xlsx")
+
+count.matrix <- count.matrix[colnames(count.matrix) %in% tec$SampleID,]
+
+colnames(count.matrix) <- tec[tec$SampleID %in% colnames(count.matrix),]$Seq_ID
+```
 
 # Save matrix count:
+```{r}
 fwrite(count.matrix, "/home/gerard/AAA/Gene_Counts/Counts.RSEM.txt", sep = "\t", row.names = T)
 ```
 
