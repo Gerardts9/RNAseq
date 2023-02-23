@@ -24,35 +24,49 @@ ann <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Annotation/gencode.v34.annotat
 ann <- ann[ann$V3 == "gene",]
 ```
 
-```{r, message=FALSE}
-# Keep only relevant columns:
+```{r}
+paste("We have", nrow(ann), "genes before filtering")
+```
+
+```{r}
+# Keep only protein coding and lncRNA genes:
+geneType <- unlist(lapply(ann$V9, function(x) strsplit(x, ";")[[1]][2]))
+keepGeneType <- which(grepl("*protein_coding*", geneType) | grepl("*lincRNA*", geneType))
+ann <- ann[keepGeneType,]
+paste("We have", nrow(ann), "genes keeping only protein_coding and lincRNA annotations.")
+```
+
+```{r}
+# Keep only annotation levels 1 and 2:
+geneLevel <- unlist(lapply(ann$V9, function(x) strsplit(x, ";")[[1]][4]))
+keepGeneLevel <- which(grepl("level 1", geneLevel) | grepl("level 2", geneLevel))
+ann <- ann[keepGeneLevel,]
+paste("We have", nrow(ann), "genes keeping only annotation levels 1 and 2.")
+```
+
+```{r}
+# Add gene_id and gene_name to the annotation file:
 ann <- ann[,c("V4","V5","V9")]
 
-# Obtain relevant information from V9 column (gene id, gene type, gene name, annotation level and length):
 ann$gene_id <- str_split_fixed(ann$V9,";",7)[,1]
-ann$gene_id <- gsub("gene_id","",ann$gene_id)
-ann$gene_id <- gsub("\\..*","",ann$gene_id)
-ann$gene_id <- gsub("[^A-Za-z0-9]","",ann$gene_id)
-
-ann$gene_type <- str_split_fixed(ann$V9,";",7)[,2]
-ann$gene_type <- gsub("gene_type","",ann$gene_type)
-ann$gene_type <- gsub("[^A-Za-z0-9]","",ann$gene_type)
+ann$gene_id <- gsub("gene_id ","",ann$gene_id)
+ann$gene_id <- gsub("[^[:alnum:].]", "", ann$gene_id)
 
 ann$gene_name <- str_split_fixed(ann$V9,";",7)[,3]
 ann$gene_name <- gsub("gene_name","",ann$gene_name)
 ann$gene_name <- gsub("[^A-Za-z0-9]","",ann$gene_name)
 
-ann$level <- str_split_fixed(ann$V9,";",7)[,4]
-ann$level <- gsub("level","",ann$level)
-ann$level <- gsub("[^A-Za-z0-9]","",ann$level)
-
+# Add length columns to the annotation file (will be used for TPM calculation):
 ann$length <- ann$V5-ann$V4
 
 # Remove old columns:
 ann <- ann[,-c("V4","V5","V9")]
-
-#fwrite(ann, "C://Users/Gerard/Desktop/AAA/RNAseq/Annotation/gencode.v34.annotation.fixed.gtf.gz", sep = "\t")
 ```
+
+```{r}
+fwrite(ann, "C://Users/Gerard/Desktop/AAA/RNAseq/Annotation/gencode.v38.annotation.fixed.gtf.gz", sep = "\t")
+```
+
 
 
 ### Load, prepare and save v26 annotation file (used in our quantification):
@@ -106,7 +120,5 @@ ann <- ann[,-c("V4","V5","V9")]
 ```{r}
 fwrite(ann, "C://Users/Gerard/Desktop/AAA/RNAseq/Annotation/gencode.v26.annotation.fixed.gtf.gz", sep = "\t")
 ```
-
-
 
 
