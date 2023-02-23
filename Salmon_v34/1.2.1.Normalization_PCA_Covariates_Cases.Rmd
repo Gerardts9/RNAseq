@@ -33,7 +33,7 @@ counts.tpm <- as.data.frame(r_tpm(counts, lengths))
 ### Load Technical table and save a case/control variable:
 
 ```{r}
-tec <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/Technical_CompleteV2.xlsx")
+tec <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/Technical_Complete.xlsx")
 cc <- tec[,c("Case")]
 cc[cc == 1] <- "Case"
 cc[cc == 0] <- "Control"
@@ -143,7 +143,7 @@ ggbiplot(my_pca, var.axes = F, obs.scale = 1, var.scale = 1) +
 ### Technical batches names:
 
 ```{r, echo = FALSE}
-tec <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/Technical_CompleteV2.xlsx")
+tec <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/Technical_Complete.xlsx")
 
 # Select only cases:
 tec <- tec[1:97,]
@@ -183,10 +183,10 @@ Correlations <- c()
 Correlations <- cbind(Correlations, dfPvalue[,-1])
 ```
 
-#### Batch:
+#### Plate:
 
 ```{r}
-covariate <- "Batch"
+covariate <- "Plate"
 
 boxplotMatrix <- cbind(tec, my_pca$x[,1:10])
 boxplotMatrixMelt <- data.frame(reshape2::melt(boxplotMatrix[,c(covariate, paste0("PC", 1:4))], id.vars=covariate))
@@ -200,11 +200,11 @@ rownames(dfPvalue) <- paste0("PC", 1:10)
 dfPvalue$pvalue <- as.numeric(format(dfPvalue$pvalue, digits = 3))
 dfPvalue$adjR2 <- as.numeric(format(dfPvalue$adjR2, digits = 3))
 
-#ggplot(boxplotMatrixMelt, aes(x=as.factor(covariate), y=value)) +
-#  geom_boxplot() +
-#  theme_bw(base_size = 16) +
-#  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-#  facet_wrap(~variable,  ncol=2)
+ggplot(boxplotMatrixMelt, aes(x=as.factor(covariate), y=value)) +
+  geom_boxplot() +
+  theme_bw(base_size = 16) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  facet_wrap(~variable,  ncol=2)
 ```
 
 ```{r}
@@ -262,11 +262,11 @@ rownames(dfPvalue) <- paste0("PC", 1:10)
 dfPvalue$pvalue <- as.numeric(format(dfPvalue$pvalue, digits = 3))
 dfPvalue$adjR2 <- as.numeric(format(dfPvalue$adjR2, digits = 3))
 
-#ggplot(boxplotMatrixMelt, aes(x=as.factor(covariate), y=value)) +
-#  geom_boxplot() +
-#  theme_bw(base_size = 16) +
-#  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-#  facet_wrap(~variable,  ncol=2)
+ggplot(boxplotMatrixMelt, aes(x=as.factor(covariate), y=value)) +
+  geom_boxplot() +
+  theme_bw(base_size = 16) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  facet_wrap(~variable,  ncol=2)
 ```
 
 ```{r}
