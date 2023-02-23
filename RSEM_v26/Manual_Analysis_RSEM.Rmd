@@ -6,27 +6,28 @@ output: html_document
 ---
 
 ```{r, warning=FALSE, message=FALSE, echo = FALSE}
-library(data.table);library(edgeR);library(tidyverse);library(openxlsx);library(preprocessCore)
+library(data.table);library(edgeR);library(tidyverse);library(openxlsx)
+library(preprocessCore)
 ```
 
 ### Make a Count Matrix from the RSEM results:
 
 ```{r}
-ff <- list.files("/home/gerard/RNAseq/GTEx",pattern = "*.rsem.genes.results", recursive = T, full.names = T)
+ff <- list.files("/home/gerard/AAA/Results/",pattern = "*.rsem.genes.results", recursive = T, full.names = T)
 
 count.matrix <- c()
 
 # Loop through all *.rsem.genes.results files obtained from RSEM.
-for (i in 1:length(ff)) {
+for (i in seq_along(ff)) {
   if (i == 1) {
     res <- fread(ff[i], select = c("gene_id", "TPM"))
-    sample <- strsplit(ff[i], "/")[[1]][6]
-    names(res)[names(res) == "TPM"] <- sample
+    id <- sub(".*/([^/]+)/[^/]+\\.\\w+$", "\\1", ff[i])
+    names(res)[names(res) == "TPM"] <- id
     count.matrix <- cbind(count.matrix, res)
   } else {
     res <- fread(ff[i], select = c("TPM"))
-    sample <- strsplit(ff[i], "/")[[1]][6]
-    names(res)[names(res) == "TPM"] <- sample
+    id <- sub(".*/([^/]+)/[^/]+\\.\\w+$", "\\1", ff[i])
+    names(res)[names(res) == "TPM"] <- id
     count.matrix <- cbind(count.matrix, res)
   }
 }
