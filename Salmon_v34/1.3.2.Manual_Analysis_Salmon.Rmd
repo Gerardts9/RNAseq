@@ -48,7 +48,7 @@ counts.tpm <- as.data.frame(r_tpm(counts, lengths))
 ### Create a case/control variable:
 
 ```{r}
-tec <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/Technical_CompleteV2.xlsx")
+tec <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/Technical_Complete.xlsx")
 cc <- tec[,c("Case")]
 cc[cc == 1] <- "Case"
 cc[cc == 0] <- "Control"
@@ -77,7 +77,7 @@ AAA <- factor(x = c(rep("Case", 97), rep("Control", 44)),
 # Batch and FC are not included because are highly correlated with AAA:
 
 design <-
-  model.matrix(~ AAA + tec$Date + tec$GC_Mean + tec$RIN + tec$FC + tec$Batch + bio$age)
+  model.matrix(~ AAA + tec$Lane + tec$GC_Mean + tec$RIN + tec$FC + tec$Library + bio$age)
 
 colnames(design) <-
   c("(Intercept)",
