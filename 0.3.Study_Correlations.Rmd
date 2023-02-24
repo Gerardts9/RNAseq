@@ -43,7 +43,7 @@ bio2$O.ANEURYSM <- as.numeric(bio2$O.ANEURYSM)
 ```{r}
 tec2 <-  tec[ ,!names(tec) %in% c("SampleID","Case")]
 
-names(tec2) <- c("INDEX.i7","INDEX.i5","FC","LANE","PLATE","RIN","DV200","QUBIT","GC_MEAN")
+names(tec2) <- c("INDEX.i7","INDEX.i5","FC","LANE","LIBRARY","RIN","DV200","QUBIT","GC_MEAN")
 
 # Transform to numeric:
 tec2$INDEX.i5 <- as.numeric(as.factor(tec2$INDEX.i5))
@@ -93,7 +93,7 @@ png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Correlations/Correlation_P
 corrplot(M, p.mat = testRes$p, sig.level = 0.05, type = "lower", insig = "blank", tl.cex = 1.75)
 dev.off()
 
-#corrplot(M, p.mat = testRes$p, sig.level = 0.05, type = "lower", insig = "blank")
+corrplot(M, p.mat = testRes$p, sig.level = 0.05, type = "lower", insig = "blank")
 ```
 
 - Type of aneurysm, height, weight, other aneurysm and size are only available for cases.
@@ -221,7 +221,7 @@ png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Correlations/Correlation_P
 corrplot(M, p.mat = testRes$p, sig.level = 0.05, type = "lower", insig = "blank")
 dev.off()
 
-#corrplot(M, p.mat = testRes$p, sig.level = 0.05, type = "lower", insig = "blank")
+corrplot(M, p.mat = testRes$p, sig.level = 0.05, type = "lower", insig = "blank")
 ```
 
 ```{r}
@@ -241,7 +241,7 @@ png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Correlations/Correlation_P
 corrplot(M, p.mat = testRes$p, sig.level = 0.05, type = "lower", insig = "blank", tl.cex = 2)
 dev.off()
 
-#corrplot(M, p.mat = testRes$p, sig.level = 0.05, type = "lower", insig = "blank")
+corrplot(M, p.mat = testRes$p, sig.level = 0.05, type = "lower", insig = "blank")
 ```
 
 
@@ -342,7 +342,7 @@ png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Correlations/Correlation_P
 corrplot(M, p.mat = testRes$p, sig.level = 0.05, type = "lower", insig = "blank", tl.cex = 2)
 dev.off()
 
-#corrplot(M, p.mat = testRes$p, sig.level = 0.05, type = "lower", insig = "blank", tl.cex = 2)
+corrplot(M, p.mat = testRes$p, sig.level = 0.05, type = "lower", insig = "blank", tl.cex = 2)
 ```
 
 
