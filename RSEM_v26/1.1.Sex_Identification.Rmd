@@ -1,0 +1,93 @@
+---
+title: "1.1.Sex_Identification"
+author: "Gerard Temprano Sagrera"
+date: "2023-02-27"
+output: html_document
+---
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+library(data.table);library(stringr);library(openxlsx);library(stringr);library(ggbiplot);library(dplyr);library(knitr);library(gridExtra);library(tidyverse)
+```
+
+### Counts are already in TPM from RSEM:
+
+```{r}
+genes <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Annotation/gencode.v26.annotation.fixed.gtf.gz")
+
+counts.tpm <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.RSEM.txt")
+counts.tpm <- counts.tpm %>% remove_rownames %>% column_to_rownames(var="V1")
+```
+
+
+```{r}
+# I am using the raw counts to increase the number of available genes:
+xist <- genes[genes$gene_name=="XIST",]$gene_id
+counts.sex.f <- counts.tpm[rownames(counts.tpm)%in%xist,]
+
+y.gene <- c("SRY","ZFY","RPS4Y1","AMELY","TBL1Y","PCDH11Y","TGIF2LY","TSPY1","TSPY2","AZFa","USP9Y","DDX3Y","UTY","TB4Y","AZFb","CYorf15","RPS4Y2","EIF1AY","KDM5D","XKRY","PRY","PRY2","HSFY1","HSFY2","RBMY1A1","AZFc","DAZ1","DAZ2","DAZ3","DAZ4","CDY1","CDY2","VCY1","VCY2")
+
+y.list <- genes[genes$gene_name%in%y.gene,]$gene_id
+counts.sex.m <- counts.tpm[rownames(counts.tpm)%in%y.list,]
+
+# Combine the XIST gene with the mean expression of all Y chromosome genes:
+counts.sex <- rbind(counts.sex.f, data.frame(t(colMeans(counts.sex.m))))
+counts.sex <- as.data.frame(t(counts.sex))
+colnames(counts.sex) <- c("XIST","Chromosome_Y")
+```
+
+
+### Apply log transformation to the sex counts:
+
+```{r}
+counts.sex.log <- log(counts.sex)
+counts.sex.log[sapply(counts.sex.log, is.infinite)] <- 0
+```
+
+### Apply normalization to the sex counts:
+
+```{r}
+counts.sex.log.scaled <- as.data.frame(scale(counts.sex.log))
+colMeans(counts.sex.log.scaled)
+apply(counts.sex.log.scaled, 2, sd)
+counts.sex.log.scaled$ID <- rownames(counts.sex.log.scaled)
+```
+
+```{r}
+sex <- read.xlsx("C://Users/Gerard/Downloads/20221115_Datos Pacientes.xlsx")
+sex <- sex[2:nrow(sex),]
+counts.sex.log.scaled <- merge(counts.sex.log.scaled, sex[,c("Muestra","SEXO")], by.x = "ID", by.y = "Muestra")
+names(counts.sex.log.scaled)[names(counts.sex.log.scaled) == "SEXO"] <- "Pheno.Sex"
+```
+
+
+```{r, fig.show="hold", out.width="50%"}
+counts.sex.log.scaled$label_row <- ifelse(counts.sex.log.scaled$ID == "HSP075", "yes", "no")
+
+Male <- ggplot(data = counts.sex.log.scaled, aes(x=XIST, y=Chromosome_Y, color=Pheno.Sex, label = ifelse(label_row == "yes", ID, ""))) +
+  theme_bw() +
+  ggtitle("Gender RNAseq") +
+  scale_color_manual(labels = c("Male", "Female"), values = c("lightblue", "red")) +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  geom_point() +
+  geom_text(data = subset(counts.sex.log.scaled, label_row == "yes"), size = 3, show.legend = FALSE)
+
+Female <- ggplot(data = counts.sex.log.scaled, aes(x=XIST, y=Chromosome_Y, color=Pheno.Sex, label = ifelse(label_row == "yes", ID, "")))  +
+  theme_bw() +
+  ggtitle("Gender RNAseq") +
+  scale_color_manual(labels=c("Male", "Female"), values=c("red", "lightblue")) +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  geom_point() +
+  geom_text(data = subset(counts.sex.log.scaled, label_row == "yes"), size = 3, show.legend = FALSE)
+```
+
+
+```{r}
+ggsave(file="C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Sex_Identification1.png", Male)
+ggsave(file="C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Sex_Identification2.png", Female)
+```
+
+
+
+
+
+
