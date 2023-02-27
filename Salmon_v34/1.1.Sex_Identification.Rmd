@@ -51,14 +51,14 @@ colnames(counts.sex) <- c("XIST","Chromosome_Y")
 ```
 
 
-Apply log transformation to the sex counts:
+### Apply log transformation to the sex counts:
 
 ```{r}
 counts.sex.log <- log(counts.sex)
 counts.sex.log[sapply(counts.sex.log, is.infinite)] <- 0
 ```
 
-Apply normalization to the sex counts:
+### Apply normalization to the sex counts:
 
 ```{r}
 counts.sex.log.scaled <- as.data.frame(scale(counts.sex.log))
@@ -68,7 +68,7 @@ counts.sex.log.scaled$ID <- rownames(counts.sex.log.scaled)
 ```
 
 ```{r}
-sex <- read.xlsx("C://Users/Gerard/Downloads/20221115_Datos Pacientes.xlsx")
+sex <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/20221115_Datos Pacientes.xlsx")
 sex <- sex[2:nrow(sex),]
 counts.sex.log.scaled <- merge(counts.sex.log.scaled, sex[,c("Muestra","SEXO")], by.x = "ID", by.y = "Muestra")
 names(counts.sex.log.scaled)[names(counts.sex.log.scaled) == "SEXO"] <- "Pheno.Sex"
@@ -78,14 +78,14 @@ names(counts.sex.log.scaled)[names(counts.sex.log.scaled) == "SEXO"] <- "Pheno.S
 ```{r, fig.show="hold", out.width="50%"}
 Male <- ggplot()  +
   theme_bw() +
-  geom_point(data = counts.sex.log.scaled, aes(x=XIST, y=Chromosome_Y, label=ID, color=Pheno.Sex)) +
+  geom_point(data = counts.sex.log.scaled, aes(x=XIST, y=Chromosome_Y, color=Pheno.Sex)) +
   ggtitle("Gender RNAseq") +
   scale_color_manual(labels=c("Male", "Female"), values=c("lightblue", "red")) +
   theme(plot.title = element_text(hjust = 0.5))
 
 Female <- ggplot()  +
   theme_bw() +
-  geom_point(data = counts.sex.log.scaled, aes(x=XIST, y=Chromosome_Y, label=ID, color=Pheno.Sex)) +
+  geom_point(data = counts.sex.log.scaled, aes(x=XIST, y=Chromosome_Y, color=Pheno.Sex)) +
   ggtitle("Gender RNAseq") +
   scale_color_manual(labels=c("Male", "Female"), values=c("red", "lightblue")) +
   theme(plot.title = element_text(hjust = 0.5))
