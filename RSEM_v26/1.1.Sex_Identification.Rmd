@@ -86,6 +86,44 @@ ggsave(file="C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Sex_Identification1.png",
 ggsave(file="C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Sex_Identification2.png", Female)
 ```
 
+### Check the sex between the controls we could not identify:
+
+```{r}
+counts.sex[rownames(counts.sex) %in% c("HSP214", "HSP217"),]
+```
+We determine that HSP214 is the Male and HSP217 is the Female.
+
+### Check the values of the mismatched sample:
+
+```{r}
+counts.sex[rownames(counts.sex) %in% "HSP075",]
+```
+It clearly looks like a Male, although it is classified as a Female in the biological information.
+
+### Create column of sex determined by the expression (Seq.Sex):
+
+```{r}
+counts.sex.log.scaled$Seq.Sex <- ifelse(counts.sex.log.scaled$XIST > 1 | counts.sex.log.scaled$Chromosome_Y < -0.5, 2, 1 )
+```
+
+### Mismatched samples:
+
+```{r}
+counts.sex.log.scaled[!counts.sex.log.scaled$Pheno.Sex == counts.sex.log.scaled$Seq.Sex,]
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
