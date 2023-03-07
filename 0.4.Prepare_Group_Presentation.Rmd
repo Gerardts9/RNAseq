@@ -7,37 +7,90 @@ output: "html_document"
 
 ```{r, warning=FALSE, message=FALSE, echo = FALSE}
 library(openxlsx);library(data.table);library(stringr);library(ggbiplot)
+
+library(tidyr)
 ```
 
 
 ### First technical table, only with cases and controls:
 
 ```{r}
-tec1 <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Techinc_1.xlsx")
-nrow(tec1) # 141 Samples.
-table(tec1$`Case/Control`) # 44 Controls / 97 Cases
+tec <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/Technical_Complete.xlsx")
+nrow(tec) # 141 Samples.
+table(tec$Case) # 44 Controls / 97 Cases
 ```
 
 ### Check all the samples have been sequenced:
 
 ```{r}
-samples <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Correspondencias.xlsx")
+samples <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/Correspondencias.xlsx")
 
 mm <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/20221013_Formulario_TablaMuestras_Gerard.xlsx", startRow = 5)
 mm <- mm[grep("HSP",mm$Nombre.de.la.muestra),]
-mm2 <- mm[mm$Nombre.de.la.muestra%in%samples$SantPau_ID,]
+mm2 <- mm[mm$Nombre.de.la.muestra%in%samples$EXHEUS_ID,]
 
-length(intersect(samples$SantPau_ID, mm$Nombre.de.la.muestra))
+length(intersect(samples$EXHEUS_ID, mm$Nombre.de.la.muestra))
+```
+### Combine 'multiQC' files:
+
+```{r}
+mqc1 <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/multiQC/multiqc_report_1.xlsx")
+mqc2 <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/multiQC/multiqc_report_2.xlsx")
+
+mqc <- rbind(mqc1, mqc2)
+
+mqc <- mqc %>% fill(names(mqc), .direction = "up")
+
+mqc <- mqc[-grep("_", mqc$Sample.Name),]
+mqc <- mqc[order(mqc$Sample.Name),]
+
+write.xlsx(mqc, "C://Users/Gerard/Desktop/AAA/RNAseq/multiQC/multiqc_report.xlsx")
 ```
 
 
 ### Analyze table obtained from the 'multiQC':
 
 ```{r}
-samples <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Samples_Table.xlsx")
-samples <- samples[!is.na(samples$M.Reads),] # 141 Samples sequenced.
+samples <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/multiQC/multiqc_report.xlsx")
+samples <- samples[!is.na(samples$Sample.Name),] # 141 Samples sequenced.
 
-range(samples$M.Reads, na.rm = T)
+
+ff <- list.files("/home/gerard/AAA/Results/", pattern = "*Log.final.out", recursive = T, full.names = T)
+ff <- ff[ !grepl("_STARpass1", ff) ]
+
+input_reads_df <- data.frame(File = character(), Input_Reads = numeric(), stringsAsFactors = FALSE)
+mapped_reads_df <- data.frame(File = character(), Mapped_Reads = numeric(), stringsAsFactors = FALSE)
+
+for (file in ff) {
+  # Read the file as a character vector
+  file_lines <- readLines(file)
+  
+  # Define regular expressions to match the parameter values
+  input_reads_regex <- "Number of input reads \\|\\s*(\\d+)"
+  mapped_reads_regex <- "Uniquely mapped reads number \\|\\s*(\\d+)"
+  
+  # Extract the parameter values using regular expressions
+  input_reads <- round(as.numeric(sub(input_reads_regex, "\\1", file_lines[grep(input_reads_regex, file_lines)]))/1000000, 2)
+  mapped_reads <- round(as.numeric(sub(mapped_reads_regex, "\\1", file_lines[grep(mapped_reads_regex, file_lines)]))/1000000, 2)
+  
+  # Extract the ID from the file path
+  file_basename <- basename(file)
+  file_id <- gsub("(^.*\\/)|([.].*$)", "", file_basename)
+  
+  # Append the extracted information to the corresponding data frames
+  input_reads_df <- rbind(input_reads_df, data.frame(File = file_id, Input_Reads = input_reads, stringsAsFactors = FALSE))
+  mapped_reads_df <- rbind(mapped_reads_df, data.frame(File = file_id, Mapped_Reads = mapped_reads, stringsAsFactors = FALSE))
+}
+
+
+
+
+cat("Input Reads:\n")
+print(input_reads_df)
+cat("\nMapped Reads:\n")
+print(mapped_reads_df)
+
+range(samples$M.Seqs, na.rm = T)
 range(samples$M.Reads.Mapped, na.rm = T)
 range(samples$M.Aligned.STAR, na.rm = T)
 
