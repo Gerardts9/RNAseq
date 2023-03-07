@@ -5,6 +5,10 @@ date: "2023-02-23"
 output: html_document
 ---
 
+```{r}
+library(dplyr);library(data.table);library(tidyverse);library(openxlsx)
+```
+
 ### Make a Count Matrix from the RSEM results:
 
 ```{r}
@@ -27,7 +31,7 @@ for (i in seq_along(ff)) {
   }
 }
 
-#if (ncol(count.matrix) != 142) {warning("Not all samples have been analyzed")}
+if (ncol(count.matrix) != 142) {warning("Not all samples have been analyzed")}
 
 count.matrix <- count.matrix %>% remove_rownames %>% column_to_rownames(var="gene_id")
 ```
