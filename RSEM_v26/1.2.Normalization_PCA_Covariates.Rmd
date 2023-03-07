@@ -434,7 +434,7 @@ Correlations <- cbind(Correlations, dfPvalue[,-1])
 rownames(Correlations) <- paste0("PC",1:10)
 colnames(Correlations) <- c("CASE","FC","LANE","LIBRARY","GC_MEAN","RIN","DV200","QUBIT","INDEX.I5","INDEX.I7")
 
-#write.xlsx(as.data.frame(Correlations), "C://Users/Gerard/Desktop/AAA/RNAseq/Corr_Tec_All.xlsx", sep = "\t", rowNames = T)
+write.xlsx(as.data.frame(Correlations), "C://Users/Gerard/Desktop/AAA/RNAseq/Corr_Tec_All.xlsx", sep = "\t", rowNames = T)
 ```
 
 
@@ -697,7 +697,7 @@ Correlations <- cbind(Correlations, dfPvalue[,-1])
 rownames(Correlations) <- paste0("PC",1:10)
 colnames(Correlations) <- c("SEX","AGE","TYPE","HEIGHT","WEIGHT","SMOKING","DIAMETER","O.ANEURYSM")
 
-#write.xlsx(as.data.frame(Correlations), "C://Users/Gerard/Desktop/AAA/RNAseq/Corr_Bio_All.xlsx", sep = "\t", rowNames = T)
+write.xlsx(as.data.frame(Correlations), "C://Users/Gerard/Desktop/AAA/RNAseq/Corr_Bio_All.xlsx", sep = "\t", rowNames = T)
 ```
 
 
