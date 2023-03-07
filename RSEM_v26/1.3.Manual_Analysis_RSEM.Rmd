@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r, warning=FALSE, message=FALSE, echo=FALSE}
-library(data.table);library(edgeR);library(tidyverse);library(openxlsx);library(preprocessCore);library("org.Hs.eg.db");library(stats);library(qvalue)
+library(data.table);library(edgeR);library(tidyverse);library(openxlsx);library(preprocessCore);library("org.Hs.eg.db");library(stats);library(qvalue);library(ggpubr)
 ```
 
 ### Load Annotation file to change format names:
@@ -48,7 +48,7 @@ bio$Smoking2 <- ifelse(bio$Smoking == 0, 0, 1)
 dge <- DGEList(counts = counts.tpm)
 
 # Set "Control" to be the first level:
-AAA <- factor(x = c(rep("Case", 97), rep("Control", 41)),
+AAA <- factor(x = c(rep("Case", 97), rep("Control", 44)),
               levels = c("Control", "Case"))
 
 # Batch and FC are not included because are highly correlated with AAA:
@@ -149,17 +149,199 @@ Results <- Results[!duplicated(Results$gene_name),]
 Results <- Results %>% remove_rownames %>% column_to_rownames(var="gene_name")
 
 Results <- Results[order(Results$pvalue),]
-#write.xlsx(Results[order(Results$pvalue), ][1:10,],"C://Users/Gerard/Desktop/AAA/RNAseq/TopTable.xlsx", rowNames = TRUE )
+#write.xlsx(Results[order(Results$pvalue), ][1:10,],"C://Users/Gerard/Desktop/AAA/RNAseq/TopTable.xlsx", rowNames = TRUE)
 
 nrow(Results[Results$fdr < 0.05,])
 ```
 
 
+### Plot residuals:
+
+#### PCSK9:
+
+##### Case:
+```{r}
+counts <- merge(counts.tpm, ann[,c("gene_id","gene_name")], by.x = 0, by.y = "gene_id")
+counts <- counts[,-1]
+counts <- counts[!duplicated(counts$gene_name),]
+counts <- counts %>% remove_rownames %>% column_to_rownames(var="gene_name")
+
+counts <- as.matrix(counts)
+```
+
+```{r}
+cases.tpm <- counts[,1:97]
+controls.tpm <- counts[,98:ncol(counts)]
+
+mean(cases.tpm["PCSK9",])
+mean(controls.tpm["PCSK9",])
+```
+
+```{r}
+res <- resid(lm(counts["PCSK9",] ~ tec$FC + tec$Lane + tec$Library + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit))
+
+res <-  data.frame(Expression = res)
+
+p <- ggplot(res, aes(x = AAA, y = Expression, fill = AAA)) + geom_boxplot() + ggtitle("PCSK9") +
+    stat_compare_means(method = "t.test") + ylab("Expression") +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 22),
+    legend.text = element_text(size = 18),
+    legend.title = element_text(size = 20),
+    axis.title.x = element_text(size = 20),
+    axis.title.y = element_text(size = 20),
+    axis.text.x = element_text(size = 20),
+    axis.text.y = element_text(size = 20)
+  ) +
+  scale_fill_discrete(name = "Status")
+
+p + scale_fill_manual(values=c("deepskyblue1", "tomato1"))
+
+ggsave("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/PCSK9.png")
+```
+
+
+##### Diameter:
+
+```{r}
+counts <- merge(counts.tpm, ann[,c("gene_id","gene_name")], by.x = 0, by.y = "gene_id")
+counts <- counts[,-1]
+counts <- counts[!duplicated(counts$gene_name),]
+counts <- counts %>% remove_rownames %>% column_to_rownames(var="gene_name")
+
+counts <- as.matrix(counts)
+```
+
+```{r}
+dia <- bio[!is.na(bio$aortc_diameter_mm),][,c("Muestra","aortc_diameter_mm")]
+
+counts <- counts[,colnames(counts) %in% dia$Muestra]
+tec2 <- tec[tec$Seq_ID %in% colnames(counts),]
+
+dia <- dia %>% remove_rownames %>% column_to_rownames(var="Muestra")
+
+res <- resid(lm(counts["PCSK9",] ~ tec2$FC + tec2$Lane + tec2$Library + tec2$GC_Mean + tec2$RIN + tec2$DV200 + tec2$Qubit))
+
+
+res <- data.frame(Expression = res,
+                  Diameter = dia)
+```
+
+```{r}
+p <- ggplot(res, aes(x = aortc_diameter_mm, y = Expression)) + geom_point(color = "orangered2") + ggtitle("PCSK9") + ylab ("Expression") + xlab("Aortic Diameter (mm)") +
+  geom_smooth(method = 'lm', formula = y ~ x, color = "black") + stat_cor(method = "pearson") +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 22),
+    legend.text = element_text(size = 18),
+    legend.title = element_text(size = 20),
+    axis.title.x = element_text(size = 20),
+    axis.title.y = element_text(size = 20),
+    axis.text.x = element_text(size = 20),
+    axis.text.y = element_text(size = 20),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_blank(),
+    axis.line = element_line(colour = "black")
+  )
+
+
+ggsave("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/PCSK9_Diameter.png")
+```
 
 
 
 
+#### EGFR:
+
+##### Case:
+
+```{r}
+counts <- merge(counts.tpm, ann[,c("gene_id","gene_name")], by.x = 0, by.y = "gene_id")
+counts <- counts[,-1]
+counts <- counts[!duplicated(counts$gene_name),]
+counts <- counts %>% remove_rownames %>% column_to_rownames(var="gene_name")
+
+counts <- as.matrix(counts)
+```
+
+```{r}
+cases.tpm <- counts[,1:97]
+controls.tpm <- counts[,98:ncol(counts)]
+
+mean(cases.tpm["EGFR",])
+mean(controls.tpm["EGFR",])
+
+table(AAA)
+```
+
+```{r}
+res <- resid(lm(counts["EGFR",] ~ tec$FC + tec$Lane + tec$Library + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit))
+res <-  data.frame(Expression = res)
 
 
+p <- ggplot(res, aes(x = AAA, y = Expression, fill = AAA)) + geom_boxplot() + ggtitle("EGFR") +
+  stat_compare_means(method = "t.test") + ylab("Expression") +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 22),
+    legend.text = element_text(size = 18),
+    legend.title = element_text(size = 20),
+    axis.title.x = element_text(size = 20),
+    axis.title.y = element_text(size = 20),
+    axis.text.x = element_text(size = 20),
+    axis.text.y = element_text(size = 20)
+  ) +
+  scale_fill_discrete(name = "Status")
 
+p + scale_fill_manual(values=c("deepskyblue1", "tomato1"))
+
+ggsave("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/EGFR.png")
+```
+
+
+##### Diameter:
+
+```{r}
+counts <- merge(counts.tpm, ann[,c("gene_id","gene_name")], by.x = 0, by.y = "gene_id")
+counts <- counts[,-1]
+counts <- counts[!duplicated(counts$gene_name),]
+counts <- counts %>% remove_rownames %>% column_to_rownames(var="gene_name")
+
+counts <- as.matrix(counts)
+```
+
+```{r}
+dia <- bio[!is.na(bio$aortc_diameter_mm),][,c("Muestra","aortc_diameter_mm")]
+
+counts <- counts[,colnames(counts) %in% dia$Muestra]
+tec2 <- tec[tec$Seq_ID %in% colnames(counts),]
+
+dia <- dia %>% remove_rownames %>% column_to_rownames(var="Muestra")
+
+res <- resid(lm(counts["EGFR",] ~ tec2$FC + tec2$Lane + tec2$Library + tec2$GC_Mean + tec2$RIN + tec2$DV200 + tec2$Qubit))
+
+
+res <- data.frame(Expression = res,
+                  Diameter = dia)
+```
+
+```{r}
+p <- ggplot(res, aes(x = aortc_diameter_mm, y = Expression)) + geom_point(color = "orangered2") + ggtitle("EGFR") + ylab ("Expression") + xlab("Aortic Diameter (mm)") +
+  geom_smooth(method = 'lm', formula = y ~ x, color = "black") + stat_cor(method = "pearson") + 
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 22),
+    legend.text = element_text(size = 18),
+    legend.title = element_text(size = 20),
+    axis.title.x = element_text(size = 20),
+    axis.title.y = element_text(size = 20),
+    axis.text.x = element_text(size = 20),
+    axis.text.y = element_text(size = 20),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_blank(),
+    axis.line = element_line(colour = "black")
+  )
+
+
+ggsave("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/EGFR_Diameter.png")
+```
 
