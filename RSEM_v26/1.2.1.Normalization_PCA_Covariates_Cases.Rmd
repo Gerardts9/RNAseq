@@ -41,7 +41,7 @@ bio <- bio[bio$Status == "Case",]
 Keep genes that have more than 50% of non-zero counts across all samples:
 ```{r}
 keep <- apply(counts.tpm, 1, function(x) sum(x == 0) <= 70)
-sum(keep) # 18,048
+#sum(keep) # 17,970
 
 counts.tpm <- counts.tpm[keep,]
 
@@ -49,8 +49,8 @@ counts.tpm <- counts.tpm[keep,]
 cases.tpm <- counts.tpm[,1:97]
 controls.tpm <- counts.tpm[,98:ncol(counts.tpm)]
 
-sum(apply(cases.tpm, 1, function(x) sum(x == 0) <= 48)) # 17,946
-sum(apply(controls.tpm, 1, function(x) sum(x == 0) <= 22)) # 17,445
+#sum(apply(cases.tpm, 1, function(x) sum(x == 0) <= 48)) # 17,884
+#sum(apply(controls.tpm, 1, function(x) sum(x == 0) <= 22)) # 17,314
 ```
 
 
@@ -104,6 +104,9 @@ ggbiplot(my_pca, var.axes = F, obs.scale = 1, var.scale = 1) +
 ```{r, echo = FALSE}
 # Select only cases:
 tec <- tec[1:97,]
+
+# Convert to factor:
+tec$Library <- as.factor(tec$Library)
 ```
 
 
@@ -126,11 +129,10 @@ rownames(dfPvalue) <- paste0("PC", 1:10)
 dfPvalue$pvalue <- as.numeric(format(dfPvalue$pvalue, digits = 3))
 dfPvalue$adjR2 <- as.numeric(format(dfPvalue$adjR2, digits = 3))
 
-ggplot(boxplotMatrixMelt, aes(x=as.factor(covariate), y=value)) +
-  geom_boxplot() +
-  theme_bw(base_size = 16) +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  facet_wrap(~variable,  ncol=2)
+ggplot(boxplotMatrix, aes(x=PC1, y=PC2, color=FC)) +
+  geom_point()+
+  scale_color_discrete() +
+  theme_classic()
 ```
 
 ```{r}
@@ -158,11 +160,11 @@ rownames(dfPvalue) <- paste0("PC", 1:10)
 dfPvalue$pvalue <- as.numeric(format(dfPvalue$pvalue, digits = 3))
 dfPvalue$adjR2 <- as.numeric(format(dfPvalue$adjR2, digits = 3))
 
-ggplot(boxplotMatrixMelt, aes(x=as.factor(covariate), y=value)) +
-  geom_boxplot() +
-  theme_bw(base_size = 16) +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  facet_wrap(~variable,  ncol=2)
+
+ggplot(boxplotMatrix, aes(x=PC1, y=PC2, color=Lane)) +
+  geom_point()+
+  scale_color_discrete() +
+  theme_classic()
 ```
 
 ```{r}
@@ -189,11 +191,10 @@ rownames(dfPvalue) <- paste0("PC", 1:10)
 dfPvalue$pvalue <- as.numeric(format(dfPvalue$pvalue, digits = 3))
 dfPvalue$adjR2 <- as.numeric(format(dfPvalue$adjR2, digits = 3))
 
-ggplot(boxplotMatrixMelt, aes(x=as.factor(covariate), y=value)) +
-  geom_boxplot() +
-  theme_bw(base_size = 16) +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  facet_wrap(~variable,  ncol=2)
+ggplot(boxplotMatrix, aes(x=PC1, y=PC2, color=Library)) +
+  geom_point()+
+  scale_color_discrete() +
+  theme_classic()
 ```
 
 ```{r}
@@ -220,11 +221,12 @@ rownames(dfPvalue) <- paste0("PC", 1:10)
 dfPvalue$pvalue <- as.numeric(format(dfPvalue$pvalue, digits = 3))
 dfPvalue$adjR2 <- as.numeric(format(dfPvalue$adjR2, digits = 3))
 
-ggplot(boxplotMatrixMelt, aes(x=as.factor(covariate), y=value)) +
-  geom_boxplot() +
-  theme_bw(base_size = 16) +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  facet_wrap(~variable,  ncol=2)
+mid <- mean(na.omit(boxplotMatrix[,covariate]))
+ggplot(boxplotMatrix, aes(x=PC1, y=PC2, color=GC_Mean)) +
+  geom_point()+
+  scale_color_gradient2(midpoint=mid, low="darkblue", mid="lightgrey",
+                        high="darkred", space ="Lab" ) +
+  theme_classic()
 ```
 
 ```{r}
@@ -252,11 +254,12 @@ rownames(dfPvalue) <- paste0("PC", 1:10)
 dfPvalue$pvalue <- as.numeric(format(dfPvalue$pvalue, digits = 3))
 dfPvalue$adjR2 <- as.numeric(format(dfPvalue$adjR2, digits = 3))
 
-ggplot(boxplotMatrixMelt, aes(x=as.factor(covariate), y=value)) +
-  geom_boxplot() +
-  theme_bw(base_size = 16) +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  facet_wrap(~variable,  ncol=2)
+mid <- mean(na.omit(boxplotMatrix[,covariate]))
+ggplot(boxplotMatrix, aes(x=PC1, y=PC2, color=RIN)) +
+  geom_point()+
+  scale_color_gradient2(midpoint=mid, low="darkblue", mid="lightgrey",
+                        high="darkred", space ="Lab" ) +
+  theme_classic()
 ```
 
 ```{r}
@@ -406,7 +409,7 @@ Correlations <- cbind(Correlations, dfPvalue[,-1])
 rownames(Correlations) <- paste0("PC",1:10)
 colnames(Correlations) <- c("FC","LANE","LIBRARY","GC_MEAN","RIN","DV200","QUBIT","INDEX.I5","INDEX.I7")
 
-write.xlsx(as.data.frame(Correlations), "C://Users/Gerard/Desktop/AAA/RNAseq/Corr_Tec_Cases.xlsx", sep = "\t", rowNames = T)
+#write.xlsx(as.data.frame(Correlations), "C://Users/Gerard/Desktop/AAA/RNAseq/Corr_Tec_Cases.xlsx", sep = "\t", rowNames = T)
 ```
 
 
@@ -430,11 +433,10 @@ rownames(dfPvalue) <- paste0("PC", 1:10)
 dfPvalue$pvalue <- as.numeric(format(dfPvalue$pvalue, digits = 3))
 dfPvalue$adjR2 <- as.numeric(format(dfPvalue$adjR2, digits = 3))
 
-ggplot(boxplotMatrixMelt, aes(x=as.factor(covariate), y=value)) +
-  geom_boxplot() +
-  theme_bw(base_size = 16) +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  facet_wrap(~variable,  ncol=2)
+ggplot(boxplotMatrix, aes(x=PC1, y=PC2, color=SEXO)) +
+  geom_point()+
+  scale_color_discrete() +
+  theme_classic()
 ```
 
 ```{r}
@@ -462,11 +464,12 @@ rownames(dfPvalue) <- paste0("PC", 1:10)
 dfPvalue$pvalue <- as.numeric(format(dfPvalue$pvalue, digits = 3))
 dfPvalue$adjR2 <- as.numeric(format(dfPvalue$adjR2, digits = 3))
 
-ggplot(boxplotMatrixMelt, aes(x=as.factor(covariate), y=value)) +
-  geom_boxplot() +
-  theme_bw(base_size = 16) +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  facet_wrap(~variable,  ncol=2)
+mid <- mean(na.omit(boxplotMatrix[,covariate]))
+ggplot(boxplotMatrix, aes(x=PC1, y=PC2, color=age)) +
+  geom_point()+
+  scale_color_gradient2(midpoint=mid, low="darkblue", mid="lightgrey",
+                        high="darkred", space ="Lab" ) +
+  theme_classic()
 ```
 
 ```{r}
@@ -494,11 +497,10 @@ rownames(dfPvalue) <- paste0("PC", 1:10)
 dfPvalue$pvalue <- as.numeric(format(dfPvalue$pvalue, digits = 3))
 dfPvalue$adjR2 <- as.numeric(format(dfPvalue$adjR2, digits = 3))
 
-ggplot(boxplotMatrixMelt, aes(x=as.factor(covariate), y=value)) +
-  geom_boxplot() +
-  theme_bw(base_size = 16) +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  facet_wrap(~variable,  ncol=2)
+ggplot(boxplotMatrix, aes(x=PC1, y=PC2, color=TIPOANEURISMA)) +
+  geom_point()+
+  scale_color_discrete() +
+  theme_classic()
 ```
 
 ```{r}
@@ -589,11 +591,10 @@ rownames(dfPvalue) <- paste0("PC", 1:10)
 dfPvalue$pvalue <- as.numeric(format(dfPvalue$pvalue, digits = 3))
 dfPvalue$adjR2 <- as.numeric(format(dfPvalue$adjR2, digits = 3))
 
-ggplot(boxplotMatrixMelt, aes(x=as.factor(covariate), y=value)) +
-  geom_boxplot() +
-  theme_bw(base_size = 16) +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  facet_wrap(~variable,  ncol=2)
+ggplot(boxplotMatrix, aes(x=PC1, y=PC2, color=Smoking)) +
+  geom_point()+
+  scale_color_discrete() +
+  theme_classic()
 ```
 
 ```{r}
@@ -653,11 +654,10 @@ rownames(dfPvalue) <- paste0("PC", 1:10)
 dfPvalue$pvalue <- as.numeric(format(dfPvalue$pvalue, digits = 3))
 dfPvalue$adjR2 <- as.numeric(format(dfPvalue$adjR2, digits = 3))
 
-ggplot(boxplotMatrixMelt, aes(x=as.factor(covariate), y=value)) +
-  geom_boxplot() +
-  theme_bw(base_size = 16) +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  facet_wrap(~variable,  ncol=2)
+ggplot(boxplotMatrix, aes(x=PC1, y=PC2, color=other_aneurysm)) +
+  geom_point()+
+  scale_color_discrete() +
+  theme_classic()
 ```
 
 ```{r}
@@ -674,7 +674,7 @@ rownames(Correlations) <- paste0("PC",1:10)
 colnames(Correlations) <- c("SEX","AGE","TYPE","HEIGHT","WEIGHT",
                             "SMOKING","DIAMETER"," O.ANEURYSM")
 
-write.xlsx(as.data.frame(Correlations), "C://Users/Gerard/Desktop/AAA/RNAseq/Corr_Bio_Cases.xlsx", sep = "\t", rowNames = T)
+#write.xlsx(as.data.frame(Correlations), "C://Users/Gerard/Desktop/AAA/RNAseq/Corr_Bio_Cases.xlsx", sep = "\t", rowNames = T)
 ```
 
 
