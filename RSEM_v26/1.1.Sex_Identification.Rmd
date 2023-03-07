@@ -53,7 +53,7 @@ counts.sex.log.scaled$ID <- rownames(counts.sex.log.scaled)
 ```
 
 ```{r}
-sex <- read.xlsx("C://Users/Gerard/Downloads/20221115_Datos Pacientes.xlsx")
+sex <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/20221115_Datos Pacientes.xlsx")
 sex <- sex[2:nrow(sex),]
 counts.sex.log.scaled <- merge(counts.sex.log.scaled, sex[,c("Muestra","SEXO")], by.x = "ID", by.y = "Muestra")
 names(counts.sex.log.scaled)[names(counts.sex.log.scaled) == "SEXO"] <- "Pheno.Sex"
