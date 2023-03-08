@@ -55,7 +55,7 @@ colnames(count.matrix) <- tec[tec$SampleID %in% colnames(count.matrix),]$Seq_ID
 
 # Save matrix count:
 ```{r}
-fwrite(count.matrix, "/home/gerard/AAA/Gene_Counts/Counts.RSEM.txt", sep = "\t", row.names = T)
+fwrite(count.matrix, "/home/gerard/AAA/Gene_Counts/Counts.RSEM.141..txt", sep = "\t", row.names = T)
 ```
 
 
