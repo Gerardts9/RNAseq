@@ -14,7 +14,7 @@ library(data.table);library(stringr);library(openxlsx);library(stringr);library(
 ```{r}
 genes <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Annotation/gencode.v26.annotation.fixed.gtf.gz")
 
-counts.tpm <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.RSEM.txt")
+counts.tpm <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.RSEM.141.txt")
 counts.tpm <- counts.tpm %>% remove_rownames %>% column_to_rownames(var="V1")
 ```
 
