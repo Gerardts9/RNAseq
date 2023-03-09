@@ -6,9 +6,9 @@ output: "html_document"
 ---
 
 ```{r, warning=FALSE, message=FALSE, echo = FALSE}
-library(openxlsx);library(data.table);library(stringr);library(ggbiplot)
-
-library(tidyr)
+library(openxlsx);library(data.table);library(stringr);
+library(ggbiplot);
+library(tidyr);library(data.table)
 ```
 
 
@@ -44,17 +44,13 @@ mqc <- mqc %>% fill(names(mqc), .direction = "up")
 mqc <- mqc[-grep("_", mqc$Sample.Name),]
 mqc <- mqc[order(mqc$Sample.Name),]
 
-write.xlsx(mqc, "C://Users/Gerard/Desktop/AAA/RNAseq/multiQC/multiqc_report.xlsx")
+#write.xlsx(mqc, "C://Users/Gerard/Desktop/AAA/RNAseq/multiQC/multiqc_report.xlsx")
 ```
 
 
-### Analyze table obtained from the 'multiQC':
+### Analyze number of reads numbers:
 
 ```{r}
-samples <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/multiQC/multiqc_report.xlsx")
-samples <- samples[!is.na(samples$Sample.Name),] # 141 Samples sequenced.
-
-
 ff <- list.files("/home/gerard/AAA/Results/", pattern = "*Log.final.out", recursive = T, full.names = T)
 ff <- ff[ !grepl("_STARpass1", ff) ]
 
@@ -82,46 +78,95 @@ for (file in ff) {
   mapped_reads_df <- rbind(mapped_reads_df, data.frame(File = file_id, Mapped_Reads = mapped_reads, stringsAsFactors = FALSE))
 }
 
+ff <- list.files("/home/gerard/AAA/Results", pattern = ".metrics.tsv", recursive = T, full.names = T)
+
+exonic_reads_df <- data.frame(Sample = character(), Exonic_Reads = numeric())
+
+# loop through all files in ff
+for (file_path in ff) {
+  
+  # read in the tsv file
+  file_data <- fread(file_path, header = FALSE)
+  
+  # extract the Exonic Rate value from the second column where the first column equals "Exonic Rate"
+  exonic_rate <- as.numeric(file_data[file_data$V1 == "Exonic Rate", 2])
+  
+  # extract the End 1 Antisense value from the second column where the first column equals "End 1 Antisense"
+  end1_antisense <- as.numeric(file_data[file_data$V1 == "End 1 Antisense", 2])
+  
+  # calculate the Exonic_Reads parameter
+  exonic_reads <- round((exonic_rate * end1_antisense)/1000000,2)
+  
+  # extract the Sample ID from the second column where the first column equals "Sample"
+  sample_id <- file_data[file_data$V1 == "Sample", 2]
+  
+  # add the new row to the results dataframe
+  exonic_reads_df <- rbind(exonic_reads_df, data.frame(Sample = sample_id, Exonic_Reads = exonic_reads, stringsAsFactors = FALSE))
+}
+
+#write.csv(input_reads_df, file = "/home/gerard/AAA/Gene_Counts/input_reads.csv", row.names = FALSE)
+#write.csv(mapped_reads_df, file = "/home/gerard/AAA/Gene_Counts/mapped_reads.csv", row.names = FALSE)
+#write.csv(exonic_reads_df, file = "/home/gerard/AAA/Gene_Counts/exonic_reads.csv", row.names = FALSE)
+```
 
 
+```{r}
+input_reads_df <- read.csv("C://Users/Gerard/Desktop/AAA/RNAseq/multiQC/input_reads.csv")
+mapped_reads_df <- read.csv("C://Users/Gerard/Desktop/AAA/RNAseq/multiQC/mapped_reads.csv")
+exonic_reads_df <- read.csv("C://Users/Gerard/Desktop/AAA/RNAseq/multiQC/exonic_reads.csv")
 
-cat("Input Reads:\n")
-print(input_reads_df)
-cat("\nMapped Reads:\n")
-print(mapped_reads_df)
+range(input_reads_df$Input_Reads, na.rm = T)
+range(mapped_reads_df$Mapped_Reads, na.rm = T)
+range(exonic_reads_df$Exonic_Reads, na.rm = T)
 
-range(samples$M.Seqs, na.rm = T)
-range(samples$M.Reads.Mapped, na.rm = T)
-range(samples$M.Aligned.STAR, na.rm = T)
-
-median(samples$M.Reads, na.rm = T)
-median(samples$M.Reads.Mapped, na.rm = T)
-median(samples$M.Aligned.STAR, na.rm = T)
+median(input_reads_df$Input_Reads, na.rm = T)
+median(mapped_reads_df$Mapped_Reads, na.rm = T)
+median(exonic_reads_df$Exonic_Reads, na.rm = T)
 ```
 
 
 ### Density plots:
 
 ```{r}
-p <- density(samples$M.Aligned.STAR) # Aligned uniquely
-p2 <- density(samples$M.Reads) # Total
-p3 <- density(samples$M.Reads.Mapped) # Mapped in bam file (samtools) 
+p <- density(input_reads_df$Input_Reads) # Input Reads
+p2 <- density(mapped_reads_df$Mapped_Reads) # Mapped Reads
+p3 <- density(exonic_reads_df$Exonic_Reads) # Exonic Reads 
 ```
 
 ```{r, include=TRUE}
-plot(density(samples$M.Aligned.STAR), main = "Density Plot",ylim = range(p$y, p2$y, p3$y), xlim = range(p$x, p2$x, p3$x), col = "green")
-lines(density(samples$M.Reads), col = "blue")
-lines(density(samples$M.Reads.Mapped), col = "red")
-legend("topright",legend=c("Aligned STAR","Total Reads","Mapped Samtools"), col = c("green","blue","red"), lty = 1, cex = 0.8, bty = "n", box.lty = 0)
+plot(density(input_reads_df$Input_Reads), main = "Density Plot",ylim = range(p$y, p2$y, p3$y), xlim = range(p$x, p2$x, p3$x), col = "green")
+lines(density(mapped_reads_df$Mapped_Reads), col = "blue")
+lines(density(exonic_reads_df$Exonic_Reads), col = "red")
+legend("topright",legend=c("Input Reads","Mapped Reads","Exonic Reads"), col = c("green","blue","red"), lty = 1, cex = 0.8, bty = "n", box.lty = 0)
 ```
-
-
 
 ### Ranges distribution:
+
 ```{r}
-table(cut(samples$M.Aligned.STAR, breaks=c(0,5,10,20,30,max(samples$M.Aligned.STAR))))
+table(cut(mapped_reads_df$Mapped_Reads, breaks=c(0,5,10,20,30,max(mapped_reads_df$Mapped_Reads))))
 ```
 
+### Exonic Reads:
+```{r}
+exonic_rate <- 100 * exonic_reads_df$Exonic_Reads/input_reads_df$Input_Reads
+
+mean_exonic_rate <- mean(exonic_rate)
+
+
+
+
+
+ggplot(data.frame(x = exonic_rate), aes(x)) +
+  geom_histogram(binwidth = 1, fill = "lightblue", color = "blue") +
+  ggtitle("Exonic Rate") +
+  labs(x = "Exonic Reads/Total Reads", y = "Count") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  geom_vline(xintercept=mean_exonic_rate, color="red", linetype="dashed", size=1) +
+  geom_text(aes(x=mean_exonic_rate-3, y=max(layer_data(p)$count), 
+                  label=paste("Mean: ", round(mean_exonic_rate,2))),
+                  color="red", hjust=0)
+```
 
 ### Analyze annotation file:
 
