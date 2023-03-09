@@ -48,7 +48,7 @@ bio$Smoking2 <- ifelse(bio$Smoking == 0, 0, 1)
 dge <- DGEList(counts = counts.tpm)
 
 # Set "Control" to be the first level:
-AAA <- factor(x = c(rep("Case", 97), rep("Control", 44)),
+AAA <- factor(x = c(rep("Case", 96), rep("Control", 44)),
               levels = c("Control", "Case"))
 
 # Batch and FC are not included because are highly correlated with AAA:
@@ -58,8 +58,10 @@ design <-
 colnames(design) <-
   c("(Intercept)",
     "AAA",
-    "FC",
-    "Lane",
+    "FC1",
+    "FC2",
+    "Lane1",
+    "Lane2",
     "Library",
     "GC_Mean",
     "RIN",
@@ -74,8 +76,8 @@ colnames(design) <-
 ```{r}
 keep <- filterByExpr(dge, design)
 
-paste0("We keep ", sum(keep), " genes") # 11,118 
-paste0("We remove ", sum(!keep), " genes") # 16,172
+paste0("We keep ", sum(keep), " genes") # 11,196
+paste0("We remove ", sum(!keep), " genes") # 16,094
 
 dge <- dge[keep,,keep.lib.sizes=FALSE]
 ```
@@ -83,10 +85,10 @@ dge <- dge[keep,,keep.lib.sizes=FALSE]
 ### Apply quantile normalization to counts:
 
 ```{r}
-tpm.rows <- rownames(counts.tpm)
-tpm.cols <- colnames(counts.tpm)
+tpm.rows <- rownames(dge$counts)
+tpm.cols <- colnames(dge$counts)
 
-counts.tpm <- as.data.frame(normalize.quantiles(as.matrix(counts.tpm)))
+counts.tpm <- as.data.frame(normalize.quantiles(as.matrix(dge$counts)))
 
 rownames(counts.tpm) <- tpm.rows
 colnames(counts.tpm) <- tpm.cols
@@ -96,14 +98,14 @@ colnames(counts.tpm) <- tpm.cols
 
 ```{r}
 Pvalue <-
-  apply(dge$counts, 1, function(x)
+  apply(counts.tpm, 1, function(x)
     summary(
       lm(
         x ~ tec$Case + tec$FC + tec$Lane + tec$Library + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age + bio$SEXO
       )
     )[4][[1]][2, 4])
 Coef <-
-  apply(dge$counts, 1, function(x)
+  apply(counts.tpm, 1, function(x)
     summary(
       lm(
         x ~ tec$Case + tec$FC + tec$Lane + tec$Library + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age + bio$SEXO
@@ -115,9 +117,9 @@ Coef <-
 ### Plot P-values:
 
 ```{r}
-#png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/GitHub/Hist_Cases_vs_Controls.png", height = 10000, width = 10000, res = 1200)
-#hist(Pvalue, main = "", cex.main = 2)
-#dev.off()
+png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Hist_Cases_vs_Controls.png", height = 10000, width = 10000, res = 1200)
+hist(Pvalue, main = "", cex.main = 2)
+dev.off()
 
 hist(Pvalue, main = "Cases vs Controls", cex.main = 2)
 ```
@@ -149,7 +151,7 @@ Results <- Results[!duplicated(Results$gene_name),]
 Results <- Results %>% remove_rownames %>% column_to_rownames(var="gene_name")
 
 Results <- Results[order(Results$pvalue),]
-#write.xlsx(Results[order(Results$pvalue), ][1:10,],"C://Users/Gerard/Desktop/AAA/RNAseq/TopTable.xlsx", rowNames = TRUE)
+write.xlsx(Results[order(Results$pvalue), ][1:10,],"C://Users/Gerard/Desktop/AAA/RNAseq/TopTable.xlsx", rowNames = TRUE)
 
 nrow(Results[Results$fdr < 0.05,])
 ```
