@@ -27,9 +27,6 @@ counts.tpm <- counts.tpm %>% remove_rownames %>% column_to_rownames(var="V1")
 ```{r}
 tec <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/Technical_Complete.xlsx")
 tec <- tec[tec$Seq_ID %in% colnames(counts.tpm),]
-cc <- tec[,c("Case")]
-cc[cc == 1] <- "Case"
-cc[cc == 0] <- "Control"
 ```
 
 ### Load Biological data to make comparissons:
@@ -53,7 +50,7 @@ AAA <- factor(x = c(rep("Case", 96), rep("Control", 44)),
 
 # Batch and FC are not included because are highly correlated with AAA:
 design <-
-  model.matrix(~ AAA + tec$FC + tec$Lane + tec$Library + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$SEXO + bio$age)
+  model.matrix(~ AAA + tec$FC + tec$Lane + tec$Library + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$SEXO + bio$age + bio$Smoking)
 
 colnames(design) <-
   c("(Intercept)",
@@ -68,7 +65,9 @@ colnames(design) <-
     "DV200",
     "Qubit",
     "Sex",
-    "Age")
+    "Age",
+    "Smoking1",
+    "Smoking2")
 ```
 
 ### Remove lowely expressed genes using LIMMA:
@@ -101,14 +100,14 @@ Pvalue <-
   apply(counts.tpm, 1, function(x)
     summary(
       lm(
-        x ~ tec$Case + tec$FC + tec$Lane + tec$Library + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age + bio$SEXO
+        x ~ tec$Case + tec$FC + tec$Lane + tec$Library + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age + bio$SEXO + bio$Smoking
       )
     )[4][[1]][2, 4])
 Coef <-
   apply(counts.tpm, 1, function(x)
     summary(
       lm(
-        x ~ tec$Case + tec$FC + tec$Lane + tec$Library + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age + bio$SEXO
+        x ~ tec$Case + tec$FC + tec$Lane + tec$Library + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age + bio$SEXO + bio$Smoking
       )
     )[4][[1]][2, 1])
 ```
@@ -117,9 +116,9 @@ Coef <-
 ### Plot P-values:
 
 ```{r}
-png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Hist_Cases_vs_Controls.png", height = 10000, width = 10000, res = 1200)
-hist(Pvalue, main = "", cex.main = 2)
-dev.off()
+#png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Hist_Cases_vs_Controls.png", height = 10000, width = 10000, res = 1200)
+#hist(Pvalue, main = "", cex.main = 2)
+#dev.off()
 
 hist(Pvalue, main = "Cases vs Controls", cex.main = 2)
 ```
@@ -151,11 +150,18 @@ Results <- Results[!duplicated(Results$gene_name),]
 Results <- Results %>% remove_rownames %>% column_to_rownames(var="gene_name")
 
 Results <- Results[order(Results$pvalue),]
-write.xlsx(Results[order(Results$pvalue), ][1:10,],"C://Users/Gerard/Desktop/AAA/RNAseq/TopTable.xlsx", rowNames = TRUE)
+#write.xlsx(Results[order(Results$pvalue), ][1:10,],"C://Users/Gerard/Desktop/AAA/RNAseq/TopTable.xlsx", rowNames = TRUE)
 
 nrow(Results[Results$fdr < 0.05,])
-```
 
+sig.genes <- rownames(Results[Results$fdr < 0.05,])
+sig.genes <- ann[ann$gene_name %in% sig.genes,]$gene_id
+
+#write.table(sig.genes, "C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Significant_genes.txt", quote = F, row.names = F, col.names = F)
+
+#write.table(sig.genes, "C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Significant_genes_smoking.txt", quote = F, row.names = F, col.names = F)
+
+```
 
 ### Plot residuals:
 
@@ -163,6 +169,8 @@ nrow(Results[Results$fdr < 0.05,])
 
 ##### Case:
 ```{r}
+counts.tpm <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.RSEM.txt")
+counts.tpm <- counts.tpm %>% remove_rownames %>% column_to_rownames(var="V1")
 counts <- merge(counts.tpm, ann[,c("gene_id","gene_name")], by.x = 0, by.y = "gene_id")
 counts <- counts[,-1]
 counts <- counts[!duplicated(counts$gene_name),]
@@ -199,7 +207,7 @@ p <- ggplot(res, aes(x = AAA, y = Expression, fill = AAA)) + geom_boxplot() + gg
 
 p + scale_fill_manual(values=c("deepskyblue1", "tomato1"))
 
-ggsave("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/PCSK9.png")
+#ggsave("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/PCSK9.png")
 ```
 
 
@@ -230,7 +238,7 @@ res <- data.frame(Expression = res,
 ```
 
 ```{r}
-p <- ggplot(res, aes(x = aortc_diameter_mm, y = Expression)) + geom_point(color = "orangered2") + ggtitle("PCSK9") + ylab ("Expression") + xlab("Aortic Diameter (mm)") +
+ggplot(res, aes(x = aortc_diameter_mm, y = Expression)) + geom_point(color = "orangered2") + ggtitle("PCSK9") + ylab ("Expression") + xlab("Aortic Diameter (mm)") +
   geom_smooth(method = 'lm', formula = y ~ x, color = "black") + stat_cor(method = "pearson") +
   theme(
     plot.title = element_text(hjust = 0.5, size = 22),
@@ -247,7 +255,7 @@ p <- ggplot(res, aes(x = aortc_diameter_mm, y = Expression)) + geom_point(color 
   )
 
 
-ggsave("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/PCSK9_Diameter.png")
+#ggsave("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/PCSK9_Diameter.png")
 ```
 
 
@@ -296,7 +304,7 @@ p <- ggplot(res, aes(x = AAA, y = Expression, fill = AAA)) + geom_boxplot() + gg
 
 p + scale_fill_manual(values=c("deepskyblue1", "tomato1"))
 
-ggsave("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/EGFR.png")
+#ggsave("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/EGFR.png")
 ```
 
 
@@ -327,7 +335,7 @@ res <- data.frame(Expression = res,
 ```
 
 ```{r}
-p <- ggplot(res, aes(x = aortc_diameter_mm, y = Expression)) + geom_point(color = "orangered2") + ggtitle("EGFR") + ylab ("Expression") + xlab("Aortic Diameter (mm)") +
+ggplot(res, aes(x = aortc_diameter_mm, y = Expression)) + geom_point(color = "orangered2") + ggtitle("EGFR") + ylab ("Expression") + xlab("Aortic Diameter (mm)") +
   geom_smooth(method = 'lm', formula = y ~ x, color = "black") + stat_cor(method = "pearson") + 
   theme(
     plot.title = element_text(hjust = 0.5, size = 22),
@@ -344,6 +352,6 @@ p <- ggplot(res, aes(x = aortc_diameter_mm, y = Expression)) + geom_point(color 
   )
 
 
-ggsave("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/EGFR_Diameter.png")
+#ggsave("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/EGFR_Diameter.png")
 ```
 
