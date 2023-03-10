@@ -6,9 +6,7 @@ output: html_document
 ---
 
 ```{r, warning=FALSE, message=FALSE, echo = FALSE}
-library(data.table);library(edgeR);library(tidyverse);library(openxlsx);library(preprocessCore);library(qvalue);library(clusterProfiler)
-library(stats)
-library(org.Hs.eg.db)
+library(data.table);library(edgeR);library(tidyverse);library(openxlsx);library(preprocessCore);library(qvalue);library(clusterProfiler);library(stats);library(org.Hs.eg.db)
 ```
 
 ### Apply TPM transformation to salmon counts:
@@ -29,13 +27,13 @@ r_tpm <- function(dfr,len)
   return(sweep(dfr1,2,sc.f,`/`))
 }
 
-counts.tpm <- as.data.frame(r_tpm(counts, lengths))
+counts.tpm_Salmon <- as.data.frame(r_tpm(counts, lengths))
 ```
 
 ### Select only cases on technical variables:
 
 ```{r}
-tec <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/Technical_CompleteV2.xlsx")
+tec <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/Technical_Complete.xlsx")
 
 # Select only cases:
 tec <- tec[1:97,]
@@ -77,20 +75,16 @@ dge <- DGEList(counts = cases.tpm)
 
 design <-
   model.matrix(
-    ~ bio$aortc_diameter_mm + tec$Date + tec$GC_Mean + tec$Batch + tec$RIN + bio$age + bio$Smoking + bio$other_aneurysm   )
+    ~ bio$aortc_diameter_mm + tec$Library + tec$GC_Mean + tec$RIN + tec$Qubit)
 
 colnames(design) <-
   c(
     "(Intercept)",
-    "Size",
-    "Date202220829",
+    "Diameter",
+    "Library",
     "GC_Mean",
-    "Plate",
     "RIN",
-    "Age",
-    "Smoking1",
-    "Smoking2",
-    "Other Aneurysm")
+    "Qubits")
 
 
 keep <- filterByExpr(dge, design)
@@ -121,7 +115,7 @@ Pvalue <-
   apply(dge$counts, 1, function(x)
     summary(
       lm(
-        x ~ bio$aortc_diameter_mm + tec$Date + tec$GC_Mean + tec$Batch + tec$RIN + bio$age + bio$Smoking + bio$other_aneurysm
+        x ~ bio$aortc_diameter_mm + tec$Library + tec$GC_Mean + tec$RIN + tec$Qubit
       )
     )[4][[1]][2, 4])
 
@@ -129,7 +123,7 @@ Coef <-
   apply(dge$counts, 1, function(x)
     summary(
       lm(
-        x ~ bio$aortc_diameter_mm + tec$Date + tec$GC_Mean + tec$Batch + tec$RIN + bio$age + bio$Smoking + bio$other_aneurysm
+        x ~ bio$aortc_diameter_mm + tec$Library + tec$GC_Mean + tec$RIN + tec$Qubit
       )
     )[4][[1]][2, 1])
 ```
@@ -154,22 +148,20 @@ plot(qobj)
 ```
 
 ```{r}
-Results.size <- data.frame(
+Results_Salmon <- data.frame(
   pvalue = Pvalue,
   qvalue = qobj$qvalues,
   fdr = p.adjust(Pvalue, method = "fdr"),
   pi1 = 1 - qobj$pi0
 )
 
-Results.size <-
-  merge(Results.size, ann[, c("gene_id", "gene_name")], by.x = 0, by.y = "gene_id")
-names(Results.size)[names(Results.size) == "Row.names"] <- "gene_ID"
-Results.size <- Results.size[!duplicated(Results.size$gene_name),]
-Results.size <-
-  Results.size %>% remove_rownames %>% column_to_rownames(var = "gene_ID")
+Results_Salmon <- merge(Results_Salmon, ann[,c("gene_id","gene_name")], by.x = 0, by.y = "gene_id")
+Results_Salmon <- Results_Salmon[,-1]
+Results_Salmon <- Results_Salmon[!duplicated(Results_Salmon$gene_name),]
+Results_Salmon <- Results_Salmon %>% remove_rownames %>% column_to_rownames(var="gene_name")
 
-#write.xlsx(Results.size[order(Results.size$pvalue), ][1:76,], "C://Users/Gerard/Desktop/AAA/RNAseq/GitHub/TopTable_Diameter.xlsx", rowNames = TRUE)
-nrow(Results.size[Results.size$fdr < 0.05,])
+#write.xlsx(Results_Salmon[order(Results_Salmon$pvalue), ][1:76,], "C://Users/Gerard/Desktop/AAA/RNAseq/GitHub/TopTable_Diameter.xlsx", rowNames = TRUE)
+nrow(Results_Salmon[Results_Salmon$fdr < 0.05,])
 ```
 
 ```{r}
@@ -290,22 +282,17 @@ dge <- DGEList(counts = cases.tpm)
 
 design <-
   model.matrix(
-    ~ bio$TIPOANEURISMA + tec$Date + tec$GC_Mean + tec$Batch + tec$RIN + bio$age + bio$Smoking + bio$other_aneurysm
+    ~ bio$TIPOANEURISMA + tec$Library + tec$GC_Mean + tec$RIN + tec$Qubit
   )
 
 colnames(design) <-
   c(
     "(Intercept)",
     "Type",
-    "Date202220829",
+    "Library",
     "GC_Mean",
-    "Plate",
     "RIN",
-    "Age",
-    "Smoking1",
-    "Smoking2",
-    "Other Aneurysm"
-    )
+    "Qubit")
 
 keep <- filterByExpr(dge, design)
 
@@ -334,14 +321,14 @@ Pvalue <-
   apply(dge$counts, 1, function(x)
     summary(
       lm(
-        x ~ bio$TIPOANEURISMA + tec$Date + tec$GC_Mean + tec$Batch + tec$RIN + bio$Smoking + bio$other_aneurysm
+        x ~ bio$TIPOANEURISMA + tec$Library + tec$GC_Mean + tec$RIN + tec$Qubit
       )
     )[4][[1]][2, 4])
 Coef <-
   apply(dge$counts, 1, function(x)
     summary(
       lm(
-        x ~ bio$TIPOANEURISMA + tec$Date + tec$GC_Mean + tec$Batch + tec$RIN + bio$Smoking + bio$other_aneurysm
+        x ~ bio$TIPOANEURISMA + tec$Library + tec$GC_Mean + tec$RIN + tec$Qubit
       )
     )[4][[1]][2, 1])
 ```
@@ -379,7 +366,7 @@ Results.type <- Results.type[,-1]
 Results.type <- Results.type[!duplicated(Results.type$gene_name),]
 Results.type <- Results.type %>% remove_rownames %>% column_to_rownames(var="gene_name")
 
-write.xlsx(Results.type[order(Results.type$pvalue), ][1:,], "C://Users/Gerard/Desktop/AAA/RNAseq/GitHub/TopTable_Type.xlsx", rowNames = TRUE)
+#write.xlsx(Results.type[order(Results.type$pvalue), ][1:,], "C://Users/Gerard/Desktop/AAA/RNAseq/GitHub/TopTable_Type.xlsx", rowNames = TRUE)
 nrow(Results.type[Results.type$fdr < 0.05,])
 ```
 
