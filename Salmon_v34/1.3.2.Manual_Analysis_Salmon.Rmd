@@ -49,9 +49,6 @@ counts.tpm <- as.data.frame(r_tpm(counts, lengths))
 
 ```{r}
 tec <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/Technical_Complete.xlsx")
-cc <- tec[,c("Case")]
-cc[cc == 1] <- "Case"
-cc[cc == 0] <- "Control"
 ```
 
 
@@ -77,16 +74,21 @@ AAA <- factor(x = c(rep("Case", 97), rep("Control", 44)),
 # Batch and FC are not included because are highly correlated with AAA:
 
 design <-
-  model.matrix(~ AAA + tec$Lane + tec$GC_Mean + tec$RIN + tec$FC + tec$Library + bio$age)
+  model.matrix(~ AAA + tec$FC + tec$Lane + tec$Library + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$SEXO + bio$age)
 
 colnames(design) <-
   c("(Intercept)",
     "AAACase",
-    "Date202220829",
+    "FC1",
+    "FC2",
+    "Lane1",
+    "Lane2",
+    "Library",
     "GC_Mean",
     "RIN",
-    "FC",
-    "Plate",
+    "DV200",
+    "Qubit",
+    "Sex",
     "Age")
 ```
 
@@ -95,8 +97,8 @@ colnames(design) <-
 ```{r}
 keep <- filterByExpr(dge, design)
 
-paste0("We keep ", sum(keep), " genes") # 10,342
-paste0("We remove ", sum(!keep), " genes") # 26,370
+paste0("We keep ", sum(keep), " genes") # 10,640
+paste0("We remove ", sum(!keep), " genes") # 26,072
 
 dge <- dge[keep,,keep.lib.sizes=FALSE]
 ```
@@ -104,10 +106,10 @@ dge <- dge[keep,,keep.lib.sizes=FALSE]
 ### Apply quantile normalization to counts:
 
 ```{r}
-tpm.rows <- rownames(counts.tpm)
-tpm.cols <- colnames(counts.tpm)
+tpm.rows <- rownames(dge$counts)
+tpm.cols <- colnames(dge$counts)
 
-counts.tpm <- as.data.frame(normalize.quantiles(as.matrix(counts.tpm)))
+counts.tpm <- as.data.frame(normalize.quantiles(as.matrix(dge$counts)))
 
 rownames(counts.tpm) <- tpm.rows
 colnames(counts.tpm) <- tpm.cols
@@ -117,17 +119,17 @@ colnames(counts.tpm) <- tpm.cols
 
 ```{r}
 Pvalue <-
-  apply(dge$counts, 1, function(x)
+  apply(counts.tpm, 1, function(x)
     summary(
       lm(
-        x ~ tec$Case + tec$Date + tec$GC_Mean + tec$RIN + tec$FC + tec$Batch + bio$age
+        x ~ tec$Case + tec$FC + tec$Lane + tec$Library + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$SEXO + bio$age
       )
     )[4][[1]][2, 4])
 Coef <-
-  apply(dge$counts, 1, function(x)
+  apply(counts.tpm, 1, function(x)
     summary(
       lm(
-        x ~ tec$Case + tec$Date + tec$GC_Mean + tec$RIN + tec$FC + tec$Batch + bio$age
+        x ~ tec$Case + tec$FC + tec$Lane + tec$Library + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$SEXO + bio$age
       )
     )[4][[1]][2, 1])
 ```
@@ -135,9 +137,9 @@ Coef <-
 ### Plot P-values:
 
 ```{r}
-png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/GitHub/Hist_Cases_vs_Controls.png", height = 10000, width = 10000, res = 1200)
-hist(Pvalue, main = "", cex.main = 2)
-dev.off()
+#png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/GitHub/Hist_Cases_vs_Controls.png", height = 10000, width = 10000, res = 1200)
+#hist(Pvalue, main = "", cex.main = 2)
+#dev.off()
 
 hist(Pvalue, main = "Cases vs Controls", cex.main = 2)
 ```
@@ -155,7 +157,7 @@ plot(qobj)
 ```
 
 ```{r}
-Results <- data.frame(
+Results_Salmon <- data.frame(
   pvalue = Pvalue,
   qvalue = qobj$qvalues,
   fdr = p.adjust(Pvalue, method = "fdr"),
@@ -163,17 +165,16 @@ Results <- data.frame(
   Beta = Coef
 )
 
-Results <- merge(Results, ann[,c("gene_id","gene_name")], by.x = 0, by.y = "gene_id")
-Results <- Results[,-1]
-Results <- Results[!duplicated(Results$gene_name),]
-Results <- Results %>% remove_rownames %>% column_to_rownames(var="gene_name")
+Results_Salmon <- merge(Results_Salmon, ann[,c("gene_id","gene_name")], by.x = 0, by.y = "gene_id")
+Results_Salmon <- Results_Salmon[,-1]
+Results_Salmon <- Results_Salmon[!duplicated(Results_Salmon$gene_name),]
+Results_Salmon <- Results_Salmon %>% remove_rownames %>% column_to_rownames(var="gene_name")
 
-Results <- Results[order(Results$pvalue),]
-#write.xlsx(Results[order(Results$pvalue), ][1:10,],"C://Users/Gerard/Desktop/AAA/RNAseq/TopTable.xlsx", rowNames = TRUE )
+Results_Salmon <- Results_Salmon[order(Results_Salmon$pvalue),]
+#write.xlsx(Results_Salmon[order(Results_Salmon$pvalue), ][1:10,],"C://Users/Gerard/Desktop/AAA/RNAseq/TopTable.xlsx", rowNames = TRUE )
 
-nrow(Results[Results$fdr < 0.05,])
-Results[1:50,]
-Results[Results$Beta > 0,]
+nrow(Results_Salmon[Results_Salmon$fdr < 0.05,])
+Results_Salmon[Results_Salmon$fdr < 0.05,]
 ```
 
 ### Plot residuals:
@@ -188,7 +189,7 @@ counts <- counts %>% remove_rownames %>% column_to_rownames(var="gene_name")
 
 counts <- as.matrix(counts)
 
-res <- resid(lm(counts["TBXA2R",] ~ tec$Date + tec$GC_Mean + tec$RIN + tec$FC + tec$Batch + bio$age))
+res <- resid(lm(counts["TBXA2R",] ~ tec$FC + tec$Lane + tec$Library + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$SEXO + bio$age))
 res <-  data.frame(Expression = res)
 
 p <- ggplot(res, aes(x = AAA, y = Expression, fill = AAA)) + geom_violin() + ggtitle("TBXA2R") +
@@ -220,7 +221,7 @@ counts <- as.matrix(counts)
 
 res <-
   resid(lm(
-    counts["TPM3", ] ~ tec$Date + tec$GC_Mean + tec$RIN + tec$FC + tec$Batch + bio$age
+    counts["TPM3", ] ~ tec$FC + tec$Lane + tec$Library + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$SEXO + bio$age
   ))
 res <-  data.frame(Expression = res)
 
@@ -241,7 +242,7 @@ p + scale_fill_manual(values = c("deepskyblue1", "tomato1"))
 ### Compare with previous results:
 
 ```{r}
-Sig.Res <- Results[Results$fdr <= 0.05,]
+Sig.Res <- Results_Salmon[Results_Salmon$fdr <= 0.05,]
 
 Media <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Media.xlsx", colNames = FALSE)
 Adv <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Adventitia.xlsx", colNames = FALSE)
