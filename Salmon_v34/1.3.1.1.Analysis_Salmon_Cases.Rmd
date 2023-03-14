@@ -9,25 +9,11 @@ output: html_document
 library(data.table);library(edgeR);library(tidyverse);library(openxlsx);library(preprocessCore);library(qvalue);library(clusterProfiler);library(stats);library(org.Hs.eg.db)
 ```
 
-### Apply TPM transformation to salmon counts:
+### Load TPMs counts from Salmon quantification (abundance):
 
 ```{r}
-# Load previously prepared salmon read counts:
-counts <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.salmon.txt")
-lengths <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Lengths.txt")
-lengths <- lengths$length/1000
-rnames <- counts$V1
-counts <- counts[,-1]
-rownames(counts) <- rnames
-
-r_tpm <- function(dfr,len)
-{
-  dfr1 <- sweep(dfr,1,len,`/`)
-  sc.f <- colSums(dfr1)/(10^6)
-  return(sweep(dfr1,2,sc.f,`/`))
-}
-
-counts.tpm <- as.data.frame(r_tpm(counts, lengths))
+counts.tpm <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.salmon.txt")
+counts.tpm <- counts.tpm %>% remove_rownames %>% column_to_rownames(var="V1")
 ```
 
 ### Select only cases on technical variables:
@@ -158,11 +144,6 @@ Results <- data.frame(
   fdr = p.adjust(Pvalue, method = "fdr"),
   pi1 = 1 - qobj$pi0
 )
-
-Results <- merge(Results, ann[,c("gene_id","gene_name")], by.x = 0, by.y = "gene_id")
-Results <- Results[,-1]
-Results <- Results[!duplicated(Results$gene_name),]
-Results <- Results %>% remove_rownames %>% column_to_rownames(var="gene_name")
 
 #write.xlsx(Results[order(Results$pvalue), ][1:76,], "C://Users/Gerard/Desktop/AAA/RNAseq/GitHub/TopTable_Diameter.xlsx", rowNames = TRUE)
 nrow(Results[Results$fdr < 0.05,])
