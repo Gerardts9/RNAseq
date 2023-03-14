@@ -6,10 +6,17 @@ output: html_document
 ---
 
 ```{r}
+library(data.table)
+```
+
+```{r}
 # Load annotation file:
 ann <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Annotation/gencode.v34.annotation.fixed.gtf.gz")
 # Load salmon counts:
 merged <- readRDS("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/salmon.merged.gene_counts.rds")
+
+abun <- assays(merged)$abundance
+colSums(abun)
 
 # Quantified genes:
 ff <- rownames(merged)
@@ -26,10 +33,11 @@ genes2 <- genes2[!(duplicated(genes2$gene_id) | duplicated(genes2$gene_id, fromL
 genes2 <- genes2[order(genes2$gene_id),]
 ```
 
-Save salmon counts and length of the genes:
+### Save salmon counts and length of the genes:
 
+# Use abundance instead of counts, to obtain directly TPM.
 ```{r}
-counts <- assays(merged)$counts
+counts <- assays(merged)$abundance
 # Select by annotation and type:
 counts <- counts[rownames(counts)%in%genes2$gene_id,]
 colnames(counts) <- gsub("_R1","",colnames(counts))
@@ -39,7 +47,7 @@ dim(counts)
 identical(genes2$gene_id,rownames(counts))
 
 fwrite(genes2[,c("gene_id","length")], "C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Lengths.txt", sep = "\t")
-fwrite(counts, "C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.salmon.txt", sep = "\t", row.names = T)
+#fwrite(counts, "C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.salmon.txt", sep = "\t", row.names = T)
 ```
 
 
