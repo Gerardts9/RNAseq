@@ -28,22 +28,29 @@ ann <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Annotation/gencode.v34.annotat
 
 ```{r}
 # Load previously prepared salmon read counts:
-counts <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.salmon.txt")
-lengths <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Lengths.txt")
-lengths <- lengths$length/1000
-rnames <- counts$V1
-counts <- counts[,-1]
-rownames(counts) <- rnames
+#counts <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.salmon.txt")
+#lengths <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Lengths.txt")
+#lengths <- lengths$length/1000
+#rnames <- counts$V1
+#counts <- counts[,-1]
+#rownames(counts) <- rnames
 
-r_tpm <- function(dfr,len)
-{
-  dfr1 <- sweep(dfr,1,len,`/`)
-  sc.f <- colSums(dfr1)/(10^6)
-  return(sweep(dfr1,2,sc.f,`/`))
-}
+#r_tpm <- function(dfr,len)
+#{
+#  dfr1 <- sweep(dfr,1,len,`/`)
+#  sc.f <- colSums(dfr1)/(10^6)
+#  return(sweep(dfr1,2,sc.f,`/`))
+#}
 
-counts.tpm <- as.data.frame(r_tpm(counts, lengths))
+#counts.tpm <- as.data.frame(r_tpm(counts, lengths))
 ```
+
+
+```{r}
+counts.tpm <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.salmon.txt")
+counts.tpm <- counts.tpm %>% remove_rownames %>% column_to_rownames(var="V1")
+```
+
 
 ### Create a case/control variable:
 
