@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r, warning=FALSE, message=FALSE, echo = FALSE}
-library(limma);library(data.table);library(edgeR);library(tidyverse);library(openxlsx)
+library(limma);library(data.table);library(edgeR);library(tidyverse);library(openxlsx);library(tidyverse)
 ```
 
 
@@ -18,26 +18,32 @@ library(limma);library(data.table);library(edgeR);library(tidyverse);library(ope
 
 ```{r}
 # Load previously prepared salmon read counts:
-counts <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.salmon.txt")
-lengths <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Lengths.txt")
-lengths <- lengths$length/1000
-rnames <- counts$V1
-counts <- counts[,-1]
-rownames(counts) <- rnames
+#counts <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.salmon.txt")
+#lengths <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Lengths.txt")
+#lengths <- lengths$length/1000
+#rnames <- counts$V1
+#counts <- counts[,-1]
+#rownames(counts) <- rnames
 
-r_tpm <- function(dfr, len) {
-  dfr1 <- sweep(dfr, 1, len, `/`)
-  sc.f <- colSums(dfr1) / (10 ^ 6)
-  return(sweep(dfr1, 2, sc.f, `/`))
-}
+#r_tpm <- function(dfr, len) {
+#  dfr1 <- sweep(dfr, 1, len, `/`)
+#  sc.f <- colSums(dfr1) / (10 ^ 6)
+#  return(sweep(dfr1, 2, sc.f, `/`))
+#}
 
-counts.tpm <- as.data.frame(r_tpm(counts, lengths))
+#counts.tpm <- as.data.frame(r_tpm(counts, lengths))
+```
+
+### Load TPMs counts:
+```{r}
+counts.tpm <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.salmon.txt")
+counts.tpm <- counts.tpm %>% remove_rownames %>% column_to_rownames(var="V1")
 ```
 
 ### Create a case/control variable:
 
 ```{r}
-tec <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/Technical_CompleteV2.xlsx")
+tec <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/First Analysis/Technical_CompleteV2.xlsx")
 cc <- tec[,c("Case")]
 cc[cc == 1] <- "Case"
 cc[cc == 0] <- "Control"
