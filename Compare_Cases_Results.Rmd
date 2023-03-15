@@ -1,0 +1,129 @@
+---
+title: "Compare Cases Results"
+author: "Gerard Temprano Sagrera"
+date: "2023-03-15"
+output: html_document
+---
+
+### Compare Salmon V34 vs v26 vs RSEM results:
+
+```{r}
+nrow(Results.V26) # 10,562.
+nrow(Results.V34) # 10,471.
+nrow(Results.RSEM) # 10,548.
+```
+
+```{r}
+common <- intersect(intersect(rownames(Results.V26), rownames(Results.V34)), rownames(Results.RSEM))
+
+Results.V26.m <- Results.V26[rownames(Results.V26) %in% common, ]
+Results.V34.m <- Results.V34[rownames(Results.V34) %in% common, ]
+Results.RSEM.m <- Results.RSEM[rownames(Results.RSEM) %in% common, ] 
+```
+
+### Check rownames:
+
+```{r}
+Results.V26.m <- Results.V26.m[order(row.names(Results.V26.m)), ][,1:3]
+Results.V34.m <- Results.V34.m[order(row.names(Results.V34.m)), ][,1:3]
+Results.RSEM.m <- Results.RSEM.m[order(row.names(Results.RSEM.m)), ][,1:3]
+```
+
+```{r}
+if (identical(row.names(Results.V26.m), row.names(Results.V34.m)) &&
+    identical(row.names(Results.V26.m), row.names(Results.RSEM.m))) {
+  cat("The rownames of the three dataframes are the same and in the same order.\n")
+} else {
+  cat("The rownames of the three dataframes are not the same or NOT in the same order.\n")
+}
+```
+
+### Correlation Results:
+
+```{r}
+dim(Results.V26.m)
+dim(Results.V34.m)
+dim(Results.RSEM.m)
+
+cor(Results.V26.m, Results.V34.m);cor(Results.V26.m, Results.RSEM.m)
+```
+
+
+
+### Counts correlations:
+
+```{r}
+cc <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/Correspondencias.xlsx")
+```
+
+```{r}
+counts.RSEM <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.RSEM.txt")
+counts.RSEM <- counts.RSEM %>% remove_rownames %>% column_to_rownames(var="V1")
+rownames(counts.RSEM) <- substr(rownames(counts.RSEM), 1, 15)
+
+counts.Sal.V26 <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.Salmon.V26.txt")
+counts.Sal.V26 <- counts.Sal.V26 %>% remove_rownames %>% column_to_rownames(var="V1")
+colnames(counts.Sal.V26) <- cc[cc$NIM_ID %in% colnames(counts.Sal.V26),]$EXHEUS_ID
+rownames(counts.Sal.V26) <- substr(rownames(counts.Sal.V26), 1, 15)
+
+counts.Sal.V34 <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.Salmon.V34.txt")
+counts.Sal.V34 <- counts.Sal.V34 %>% remove_rownames %>% column_to_rownames(var="V1")
+```
+
+```{r}
+dim(counts.RSEM) # 27,290
+dim(counts.Sal.V26) # 27,290
+dim(counts.Sal.V34) # 19,904
+```
+
+```{r}
+common.row <- intersect(intersect(rownames(counts.RSEM), rownames(counts.Sal.V26)), rownames(counts.Sal.V34)) # 19,618
+common.col <- intersect(intersect(colnames(counts.RSEM), colnames(counts.Sal.V26)), colnames(counts.Sal.V34))
+```
+
+```{r}
+counts.RSEM2 <- counts.RSEM[rownames(counts.RSEM) %in% common.row, colnames(counts.RSEM) %in% common.col]
+counts.Sal.V26.2 <- counts.Sal.V26[rownames(counts.Sal.V26) %in% common.row, colnames(counts.Sal.V26) %in% common.col]
+counts.Sal.V34.2 <- counts.Sal.V34[rownames(counts.Sal.V34) %in% common.row, colnames(counts.Sal.V34) %in% common.col]
+```
+
+
+```{r}
+if (identical(row.names(counts.RSEM2), row.names(counts.Sal.V26.2)) &&
+    identical(row.names(counts.RSEM2), row.names(counts.Sal.V34.2))) {
+  cat("The rownames of the three dataframes ARE the same and in the same order.\n")
+} else {
+  cat("The rownames of the three dataframes ARE NOT the same or NOT in the same order.\n")
+}
+```
+
+
+```{r}
+if (identical(row.names(counts.RSEM2), row.names(counts.Sal.V26.2)) &&
+    identical(row.names(counts.RSEM2), row.names(counts.Sal.V34.2))) {
+  cat("The colnames of the three dataframes ARE the same and in the same order.\n")
+} else {
+  cat("The colnames of the three dataframes ARE NOT the same or NOT in the same order.\n")
+}
+```
+
+```{r}
+dim(counts.RSEM2)
+dim(counts.Sal.V26.2)
+dim(counts.Sal.V34.2)
+```
+
+
+```{r}
+mean(diag(cor(counts.RSEM2, counts.Sal.V26.2)))
+
+mean(diag(cor(counts.RSEM2, counts.Sal.V34.2)))
+
+mean(diag(cor(counts.Sal.V26.2, counts.Sal.V34.2)))
+```
+
+
+
+
+
+
