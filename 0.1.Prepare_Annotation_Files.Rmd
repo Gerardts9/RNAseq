@@ -22,20 +22,6 @@ library(openxlsx);library(data.table);library(stringr);library(dplyr)
 ann <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Annotation/gencode.v34.annotation.gtf.gz", header = F, nThread = 6)
 ```
 
-### Prepare transcript to gene file:
-
-```{r}
-trans <- ann[ann$V3 == "transcript",]
-
-# Define regular expressions for gene_id and transcript_id
-trans$gene_id <- str_extract(trans$V9, '(?<=gene_id\\s")[ENSG]+\\d+\\.\\d+')
-trans$transcript_id <- str_extract(trans$V9, '(?<=transcript_id\\s")[ENST]+\\d+\\.\\d+')
-
-gtf <- trans[,c("transcript_id","gene_id")]
-
-#fwrite(gtf, "C://Users/Gerard/Downloads/TranscriptToGeneV34.txt", sep = "\t")
-```
-
 ### Only genes:
 
 ```{r}
@@ -49,7 +35,7 @@ paste("We have", nrow(ann), "genes before filtering")
 ```{r}
 # Keep only protein coding and lncRNA genes:
 geneType <- unlist(lapply(ann$V9, function(x) strsplit(x, ";")[[1]][2]))
-keepGeneType <- which(grepl("*protein_coding*", geneType) | grepl("*lincRNA*", geneType))
+keepGeneType <- which(grepl("*protein_coding*", geneType) | grepl("*lncRNA*", geneType))
 ann <- ann[keepGeneType,]
 paste("We have", nrow(ann), "genes keeping only protein_coding and lincRNA annotations.")
 ```
@@ -94,22 +80,8 @@ ann <- ann[,-c("V4","V5","V9")]
 ann <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Annotation/gencode.v26.annotation.gtf.gz", header = F, nThread = 6)
 ```
 
-### Prepare transcript to gene file:
-
-```{r}
-trans <- ann[ann$V3 == "transcript",]
-
-# Define regular expressions for gene_id and transcript_id
-trans$gene_id <- str_extract(trans$V9, '(?<=gene_id\\s")[ENSG]+\\d+\\.\\d+')
-trans$transcript_id <- str_extract(trans$V9, '(?<=transcript_id\\s")[ENST]+\\d+\\.\\d+')
-
-gtf <- trans[,c("transcript_id","gene_id")]
-
-#fwrite(gtf, "C://Users/Gerard/Downloads/TranscriptToGeneV26.txt", sep = "\t")
-```
-
-
 ### Select only genes:
+
 ```{r}
 ann <- ann[ann$V3 == "gene",]
 ```
