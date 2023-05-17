@@ -1,0 +1,96 @@
+---
+title: "1.1.2.Prepare_SUPA_Counts"
+author: "Gerard Temprano Sagrera"
+date: "2023-05-10"
+output: html_document
+---
+
+```{r}
+library(dplyr);library(data.table);library(tidyverse);library(openxlsx)
+```
+
+
+### Make a Count Transcript Matrix from the RSEM results:
+
+#### All:
+
+```{r}
+ff <- list.files("/home/gerard/AAA/Results2/",pattern = "*.rsem.isoforms.results", recursive = T, full.names = T)
+
+count.matrix <- c()
+
+# Loop through all *.rsem.genes.results files obtained from RSEM.
+for (i in seq_along(ff)) {
+  if (i == 1) {
+    res <- fread(ff[i], select = c("transcript_id", "TPM"))
+    id <- sub(".*/([^/]+)/[^/]+\\.\\w+$", "\\1", ff[i])
+    names(res)[names(res) == "TPM"] <- id
+    count.matrix <- cbind(count.matrix, res)
+  } else {
+    res <- fread(ff[i], select = c("TPM"))
+    id <- sub(".*/([^/]+)/[^/]+\\.\\w+$", "\\1", ff[i])
+    names(res)[names(res) == "TPM"] <- id
+    count.matrix <- cbind(count.matrix, res)
+  }
+}
+
+if (ncol(count.matrix) != 142) {warning("Not all samples have been analyzed")}
+
+count.matrix <- count.matrix %>% remove_rownames %>% column_to_rownames(var="transcript_id")
+```
+
+```{r}
+# Use the annotation file to select among the quantified genes:
+ann <- fread("/home/gerard/AAA/refs/gencode.v26.annotation.fixed.transcripts.gtf.gz")
+
+count.matrix <- count.matrix[rownames(count.matrix) %in% ann$transcript_id,]
+```
+
+# Change IDs format:
+```{r}
+tec <- read.xlsx("/home/gerard/AAA/Tables/Technical_Complete.xlsx")
+
+count.matrix <- count.matrix[colnames(count.matrix) %in% tec$SampleID,]
+
+colnames(count.matrix) <- tec[tec$SampleID %in% colnames(count.matrix),]$Seq_ID
+```
+
+
+# Remove mismatched sample from count files:
+
+```{r}
+count.matrix <- count.matrix[, !(names(count.matrix) %in% "HSP075")]
+dim(count.matrix) # 140 Samples.
+```
+
+# Split Cases vs Controls:
+
+```{r}
+bio <- read.xlsx("/home/gerard/AAA/Tables/20221115_Datos Pacientes.xlsx")
+bio <- bio[2:nrow(bio),]
+
+cases <- bio[bio$Status == "Case",]$Muestra
+controls <- bio[bio$Status == "Control",]$Muestra
+```
+
+
+```{r}
+write.table(count.matrix[,colnames(count.matrix) %in% cases], file = "/home/gerard/AAA/Gene_Counts/Counts.RSEM.Cases.Suppa.txt", quote = FALSE, sep = "\t", row.names = TRUE, col.names = TRUE)
+
+write.table(count.matrix[,colnames(count.matrix) %in% controls], file = "/home/gerard/AAA/Gene_Counts/Counts.RSEM.Controls.Suppa.txt", quote = FALSE, sep = "\t", row.names = TRUE, col.names = TRUE)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
