@@ -12,20 +12,15 @@ library(edgeR);library(openxlsx);library(data.table);library(DESeq2);library(txi
 ### Counts are already in TPM from RSEM:
 
 ```{r}
-counts.tpm <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.RSEM.txt")
+counts.tpm <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.RSEM.Cases.txt")
 counts.tpm <- counts.tpm %>% remove_rownames %>% column_to_rownames(var="V1")
 ```
 
-### Load Technical table and save a case/control variable:
+### Load Technical table:
 
 ```{r}
-tec <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/Technical_Complete.xlsx")
-cc <- tec[,c("Case")]
-cc[cc == 1] <- "Case"
-cc[cc == 0] <- "Control"
-
-tec$index.i5 <- as.numeric(as.factor(tec$index.i5))
-tec$index.i7 <- as.numeric(as.factor(tec$index.i7))
+tec <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/First Analysis/Technical_CompleteV2.xlsx")
+tec <- tec[tec$SampleID %in% colnames(counts.tpm), ]
 ```
 
 ### Load Biological table:
@@ -33,7 +28,7 @@ tec$index.i7 <- as.numeric(as.factor(tec$index.i7))
 ```{r}
 bio <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/20221115_Datos Pacientes.xlsx")
 bio <- bio[2:nrow(bio),]
-bio <- bio[bio$Status == "Case",]
+bio <- bio[bio$Muestra %in% colnames(counts.tpm),]
 ```
 
 ### Filter lowely expressed genes:
@@ -41,23 +36,16 @@ bio <- bio[bio$Status == "Case",]
 Keep genes that have more than 50% of non-zero counts across all samples:
 ```{r}
 keep <- apply(counts.tpm, 1, function(x) sum(x == 0) <= 70)
-#sum(keep) # 17,970
+sum(keep) # 19,630
 
 counts.tpm <- counts.tpm[keep,]
-
-# Check how this filter affects cases and controls:
-cases.tpm <- counts.tpm[,1:97]
-controls.tpm <- counts.tpm[,98:ncol(counts.tpm)]
-
-#sum(apply(cases.tpm, 1, function(x) sum(x == 0) <= 48)) # 17,884
-#sum(apply(controls.tpm, 1, function(x) sum(x == 0) <= 22)) # 17,314
 ```
 
 
 ### Transform to DGEList format:
 
 ```{r}
-dge <- DGEList(counts=cases.tpm)
+dge <- DGEList(counts=counts.tpm)
 ```
 
 ### Apply TMM Normalization:
@@ -102,20 +90,19 @@ ggbiplot(my_pca, var.axes = F, obs.scale = 1, var.scale = 1) +
 ### Technical batches names:
 
 ```{r, echo = FALSE}
-# Select only cases:
-tec <- tec[1:97,]
+lapply(tec, class)
 
 # Convert to factor:
-tec$Library <- as.factor(tec$Library)
+tec$Batch <- as.factor(tec$Batch)
 ```
 
 
 ## Technical Covariates against PCA:
 
-#### FC:
+#### Date:
 
 ```{r}
-covariate <- "FC"
+covariate <- "Date"
 
 boxplotMatrix <- cbind(tec, my_pca$x[,1:10])
 boxplotMatrixMelt <- data.frame(reshape2::melt(boxplotMatrix[,c(covariate, paste0("PC", 1:4))], id.vars=covariate))
@@ -129,7 +116,7 @@ rownames(dfPvalue) <- paste0("PC", 1:10)
 dfPvalue$pvalue <- as.numeric(format(dfPvalue$pvalue, digits = 3))
 dfPvalue$adjR2 <- as.numeric(format(dfPvalue$adjR2, digits = 3))
 
-ggplot(boxplotMatrix, aes(x=PC1, y=PC2, color=FC)) +
+ggplot(boxplotMatrix, aes(x=PC1, y=PC2, color=Date)) +
   geom_point()+
   scale_color_discrete() +
   theme_classic()
@@ -143,10 +130,10 @@ Correlations <- c()
 Correlations <- cbind(Correlations, dfPvalue[,-1])
 ```
 
-#### Lane:
+#### Batch:
 
 ```{r}
-covariate <- "Lane"
+covariate <- "Batch"
 
 boxplotMatrix <- cbind(tec, my_pca$x[,1:10])
 boxplotMatrixMelt <- data.frame(reshape2::melt(boxplotMatrix[,c(covariate, paste0("PC", 1:4))], id.vars=covariate))
@@ -161,7 +148,7 @@ dfPvalue$pvalue <- as.numeric(format(dfPvalue$pvalue, digits = 3))
 dfPvalue$adjR2 <- as.numeric(format(dfPvalue$adjR2, digits = 3))
 
 
-ggplot(boxplotMatrix, aes(x=PC1, y=PC2, color=Lane)) +
+ggplot(boxplotMatrix, aes(x=PC1, y=PC2, color=Batch)) +
   geom_point()+
   scale_color_discrete() +
   theme_classic()
@@ -174,35 +161,6 @@ dfPvalue$covariate <- ifelse(dfPvalue$pvalue < 0.05, paste0(dfPvalue$covariate, 
 Correlations <- cbind(Correlations, dfPvalue[,-1])
 ```
 
-#### Library:
-
-```{r}
-covariate <- "Library"
-
-boxplotMatrix <- cbind(tec, my_pca$x[,1:10])
-boxplotMatrixMelt <- data.frame(reshape2::melt(boxplotMatrix[,c(covariate, paste0("PC", 1:4))], id.vars=covariate))
-colnames(boxplotMatrixMelt)[1] <- "covariate"
-
-dfPvalue <- as.data.frame(matrix(unlist(lapply(paste0("PC", 1:10), function(x) c(anova(lm(as.formula(paste0(x, "~1+", covariate)), data=boxplotMatrix))[5][[1]][1], summary(lm(as.formula(paste0(x, "~1+", covariate)), data = boxplotMatrix))[9]))), ncol=2, byrow = T))
-
-colnames(dfPvalue) <- c("pvalue", "adjR2")
-rownames(dfPvalue) <- paste0("PC", 1:10)
-
-dfPvalue$pvalue <- as.numeric(format(dfPvalue$pvalue, digits = 3))
-dfPvalue$adjR2 <- as.numeric(format(dfPvalue$adjR2, digits = 3))
-
-ggplot(boxplotMatrix, aes(x=PC1, y=PC2, color=Library)) +
-  geom_point()+
-  scale_color_discrete() +
-  theme_classic()
-```
-
-```{r}
-colnames(dfPvalue) <- c("pvalue", "covariate")
-dfPvalue$covariate <- ifelse(dfPvalue$pvalue < 0.05, paste0(dfPvalue$covariate, " ***"), dfPvalue$covariate)
-
-Correlations <- cbind(Correlations, dfPvalue[,-1])
-```
 
 #### GC_Mean:
 
@@ -336,78 +294,11 @@ Correlations <- cbind(Correlations, dfPvalue[,-1])
 ```
 
 
-#### index.i5:
-
-```{r}
-covariate <- "index.i5"
-
-boxplotMatrix <- cbind(tec, my_pca$x[,1:10])
-boxplotMatrixMelt <- data.frame(reshape2::melt(boxplotMatrix[,c(covariate, paste0("PC", 1:4))], id.vars=covariate))
-colnames(boxplotMatrixMelt)[1] <- "covariate"
-
-dfPvalue <- as.data.frame(matrix(unlist(lapply(paste0("PC", 1:10), function(x) c(anova(lm(as.formula(paste0(x, "~1+", covariate)), data=boxplotMatrix))[5][[1]][1], summary(lm(as.formula(paste0(x, "~1+", covariate)), data = boxplotMatrix))[9]))), ncol=2, byrow = T))
-
-colnames(dfPvalue) <- c("pvalue", "adjR2")
-rownames(dfPvalue) <- paste0("PC", 1:10)
-
-dfPvalue$pvalue <- as.numeric(format(dfPvalue$pvalue, digits = 3))
-dfPvalue$adjR2 <- as.numeric(format(dfPvalue$adjR2, digits = 3))
-
-mid <- mean(na.omit(boxplotMatrix[,covariate]))
-ggplot(boxplotMatrix, aes(x=PC1, y=PC2, color=index.i5)) +
-  geom_point()+
-  scale_color_gradient2(midpoint=mid, low="darkblue", mid="lightgrey",
-                        high="darkred", space ="Lab" ) +
-  theme_classic()
-```
-
-```{r}
-colnames(dfPvalue) <- c("pvalue", "covariate")
-dfPvalue$covariate <- ifelse(dfPvalue$pvalue < 0.05, paste0(dfPvalue$covariate, " ***"), dfPvalue$covariate)
-
-Correlations <- cbind(Correlations, dfPvalue[,-1])
-```
-
-
-
-#### index.i7:
-
-```{r}
-covariate <- "index.i7"
-
-boxplotMatrix <- cbind(tec, my_pca$x[,1:10])
-boxplotMatrixMelt <- data.frame(reshape2::melt(boxplotMatrix[,c(covariate, paste0("PC", 1:4))], id.vars=covariate))
-colnames(boxplotMatrixMelt)[1] <- "covariate"
-
-dfPvalue <- as.data.frame(matrix(unlist(lapply(paste0("PC", 1:10), function(x) c(anova(lm(as.formula(paste0(x, "~1+", covariate)), data=boxplotMatrix))[5][[1]][1], summary(lm(as.formula(paste0(x, "~1+", covariate)), data = boxplotMatrix))[9]))), ncol=2, byrow = T))
-
-colnames(dfPvalue) <- c("pvalue", "adjR2")
-rownames(dfPvalue) <- paste0("PC", 1:10)
-
-dfPvalue$pvalue <- as.numeric(format(dfPvalue$pvalue, digits = 3))
-dfPvalue$adjR2 <- as.numeric(format(dfPvalue$adjR2, digits = 3))
-
-mid <- mean(na.omit(boxplotMatrix[,covariate]))
-ggplot(boxplotMatrix, aes(x=PC1, y=PC2, color=index.i7)) +
-  geom_point()+
-  scale_color_gradient2(midpoint=mid, low="darkblue", mid="lightgrey",
-                        high="darkred", space ="Lab" ) +
-  theme_classic()
-```
-
-```{r}
-colnames(dfPvalue) <- c("pvalue", "covariate")
-dfPvalue$covariate <- ifelse(dfPvalue$pvalue < 0.05, paste0(dfPvalue$covariate, " ***"), dfPvalue$covariate)
-
-Correlations <- cbind(Correlations, dfPvalue[,-1])
-```
-
-
 #### Prepare and save Correlations table:
 
 ```{r}
 rownames(Correlations) <- paste0("PC",1:10)
-colnames(Correlations) <- c("FC","LANE","LIBRARY","GC_MEAN","RIN","DV200","QUBIT","INDEX.I5","INDEX.I7")
+colnames(Correlations) <- c("DATE","BATCH","GC_MEAN","RIN","DV200","QUBIT")
 
 #write.xlsx(as.data.frame(Correlations), "C://Users/Gerard/Desktop/AAA/RNAseq/Corr_Tec_Cases.xlsx", sep = "\t", rowNames = T)
 ```
@@ -678,9 +569,9 @@ colnames(Correlations) <- c("SEX","AGE","TYPE","HEIGHT","WEIGHT",
 ```
 
 
-1. Recommended technical Variables for Cases: FC, LANE, LIBRARY, GC_MEAN, RIN, DV200, QUBIT.
+1. Recommended technical Variables for Cases: DATE, BATCH, GC_MEAN, RIN, DV200, QUBIT.
 
-2. Recommended Biological variables for Cases:
+2. Recommended Biological variables for Cases: AGE, (SMOKING).
 
 
 

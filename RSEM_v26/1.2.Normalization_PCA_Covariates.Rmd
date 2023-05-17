@@ -13,8 +13,7 @@ library(edgeR);library(openxlsx);library(data.table);library(DESeq2);library(txi
 ### Counts are already in TPM from RSEM:
 
 ```{r}
-counts.tpm <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.RSEM.txt")
-counts.tpm <- counts.tpm %>% remove_rownames %>% column_to_rownames(var="V1")
+counts.tpm <- read.table("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.RSEM.All.txt")
 ```
 
 
@@ -701,25 +700,7 @@ write.xlsx(as.data.frame(Correlations), "C://Users/Gerard/Desktop/AAA/RNAseq/Cor
 ```
 
 
-1. Recommended Technical Variables: FC, LANE, LIBRARY, GC_MEAN, RIN, DV200, QUBIT.
+1. Recommended Technical Variables: FC, LANE, GC_MEAN, RIN, DV200, QUBIT.
 
-2. Recommended Biological Variables: 
-
-
-
-### Correlation plot:
-
-```{r}
-tec2 <- tec %>% remove_rownames %>% column_to_rownames(var="SampleID")
-tec2 <- tec2[,2:ncol(tec2)]
-
-tec2$FC <- as.numeric(as.factor(tec2$FC))
-tec2$Lane <- as.numeric(as.factor(tec2$Lane))
-
-#png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/GitHub/Correlation_Technical.png")
-#corrplot(cor(tec), type = "lower", order = "AOE", tl.pos = "ld", cl.pos = "n")
-#dev.off()
-
-#corrplot(cor(tec), type = "lower", order = "AOE", tl.pos = "ld", cl.pos = "n")
-```
+2. Recommended Biological Variables: SEX, AGE. With and Without SMOKING.
 
