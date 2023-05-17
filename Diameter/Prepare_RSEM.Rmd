@@ -1,0 +1,77 @@
+---
+title: "1.Prepare_RSEM_Counts.Rmd"
+author: "Gerard Temprano Sagrera"
+date: "2023-02-23"
+output: html_document
+---
+
+```{r}
+library(dplyr);library(data.table);library(tidyverse);library(openxlsx)
+```
+
+### Make a Count Matrix from the RSEM results:
+
+```{r}
+#ff <- list.files("/home/gerard/AAA/Results/",pattern = "*.rsem.genes.results", recursive = T, full.names = T)
+ff <- list.files("/home/gerard/AAA/ResultsV34/",pattern = "*.rsem.genes.results", recursive = T, full.names = T)
+
+count.matrix <- c()
+
+# Loop through all *.rsem.genes.results files obtained from RSEM.
+for (i in seq_along(ff)) {
+  if (i == 1) {
+    res <- fread(ff[i], select = c("gene_id", "TPM"))
+    id <- sub(".*/([^/]+)/[^/]+\\.\\w+$", "\\1", ff[i])
+    names(res)[names(res) == "TPM"] <- id
+    count.matrix <- cbind(count.matrix, res)
+  } else {
+    res <- fread(ff[i], select = c("TPM"))
+    id <- sub(".*/([^/]+)/[^/]+\\.\\w+$", "\\1", ff[i])
+    names(res)[names(res) == "TPM"] <- id
+    count.matrix <- cbind(count.matrix, res)
+  }
+}
+
+if (ncol(count.matrix) != 141) {warning("Not all samples have been analyzed")}
+
+count.matrix <- count.matrix %>% remove_rownames %>% column_to_rownames(var="gene_id")
+```
+
+
+```{r}
+# Use the annotation file to select among the quantified genes:
+#ann <- fread("/home/gerard/AAA/refs/gencode.v26.annotation.fixed.gtf.gz")
+ann <- fread("/home/gerard/AAA/refs/gencode.v34.annotation.fixed.gtf.gz")
+
+count.matrix <- count.matrix[rownames(count.matrix) %in% ann$gene_id,]
+```
+
+# Change IDs format:
+```{r}
+tec <- read.xlsx("/home/gerard/AAA/Tables/Technical_Complete.xlsx")
+
+count.matrix <- count.matrix[colnames(count.matrix) %in% tec$SampleID,]
+
+colnames(count.matrix) <- tec[tec$SampleID %in% colnames(count.matrix),]$Seq_ID
+```
+
+# Save matrix count:
+```{r}
+#fwrite(count.matrix, "/home/gerard/AAA/Gene_Counts/Counts.RSEM.V26.txt", sep = "\t", row.names = T)
+#fwrite(count.matrix, "/home/gerard/AAA/Gene_Counts/Counts.RSEM.V34.txt", sep = "\t", row.names = T)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

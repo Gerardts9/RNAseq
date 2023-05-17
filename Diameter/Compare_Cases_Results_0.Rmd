@@ -1,0 +1,182 @@
+---
+title: "Compare Cases Results"
+author: "Gerard Temprano Sagrera"
+date: "2023-03-15"
+output: html_document
+---
+
+```{r}
+library(data.table);library(tidyverse);library(openxlsx)
+```
+
+### Compare DEG results:
+
+#### Load resuts:
+
+```{r}
+Salmon.v26 <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/DEG_Diameter/Salmon.V26_0.txt")
+Salmon.v26 <- Salmon.v26 %>% remove_rownames %>% column_to_rownames(var="V1")
+
+Salmon.v34 <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/DEG_Diameter/Salmon.V34_0.txt")
+Salmon.v34 <- Salmon.v34 %>% remove_rownames %>% column_to_rownames(var="V1")
+
+RSEM.v26 <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/DEG_Diameter/RSEM.V26.txt")
+RSEM.v26 <- RSEM.v26 %>% remove_rownames %>% column_to_rownames(var="V1")
+
+#RSEM.v34 <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/DEG_Diameter/RSEM.V34.txt")
+#RSEM.v34 <- RSEM.v34 %>% remove_rownames %>% column_to_rownames(var="V1")
+
+Salmon.v34.Exh <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/DEG_Diameter/Salmon.V34_Exh_0.txt")
+Salmon.v34.Exh <- Salmon.v34.Exh %>% remove_rownames %>% column_to_rownames(var="V1")
+```
+
+### Genes after filtering:
+
+```{r}
+nrow(Salmon.v26) # 10,562.
+nrow(Salmon.v34) # 10,725.
+nrow(RSEM.v26) # 10,548.
+nrow(Salmon.v34.Exh) # 10,833.
+```
+
+```{r}
+common <- intersect(intersect(intersect(rownames(Salmon.v26), rownames(Salmon.v34)), rownames(RSEM.v26)), rownames(Salmon.v34.Exh)) # 9,948.
+
+Salmon.v26 <- Salmon.v26[rownames(Salmon.v26) %in% common, ]
+Salmon.v34 <- Salmon.v34[rownames(Salmon.v34) %in% common, ]
+RSEM.v26 <- RSEM.v26[rownames(RSEM.v26) %in% common, ]
+Salmon.v34.Exh <- Salmon.v34.Exh[rownames(Salmon.v34.Exh) %in% common, ]
+```
+
+### Check rownames:
+
+```{r}
+Salmon.v26 <- Salmon.v26[order(row.names(Salmon.v26)), ][,c(1:3,5)]
+Salmon.v34 <- Salmon.v34[order(row.names(Salmon.v34)), ][,c(1:3,5)]
+RSEM.v26 <- RSEM.v26[order(row.names(RSEM.v26)), ][,c(1:3,5)]
+Salmon.v34.Exh <- Salmon.v34.Exh[order(row.names(Salmon.v34.Exh)), ][,c(1:3,5)]
+```
+
+```{r}
+if (identical(row.names(Salmon.v26), row.names(Salmon.v34)) &&
+    identical(row.names(Salmon.v26), row.names(RSEM.v26)) && 
+    identical(row.names(Salmon.v26), row.names(Salmon.v34.Exh))){
+  cat("The rownames of the three dataframes ARE the same and in the same order.\n")
+} else {
+  cat("The rownames of the three dataframes are NOT the same or NOT in the same order.\n")
+}
+```
+
+### Correlation Results:
+
+```{r}
+cor(Salmon.v26, Salmon.v34)
+```
+
+
+```{r}
+cor(Salmon.v26, RSEM.v26)
+```
+
+
+```{r}
+cor(Salmon.v34, RSEM.v26)
+```
+
+```{r}
+cor(Salmon.v26, Salmon.v34.Exh)
+```
+
+```{r}
+cor(RSEM.v26, Salmon.v34.Exh)
+```
+
+
+```{r}
+cor(Salmon.v34, Salmon.v34.Exh)
+```
+
+
+
+### Counts correlations:
+
+```{r}
+cc <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/Correspondencias.xlsx")
+```
+
+
+#### Load counts:
+
+```{r}
+counts.Sal.V26 <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.Salmon.V26.txt")
+counts.Sal.V26 <- counts.Sal.V26 %>% remove_rownames %>% column_to_rownames(var="V1")
+colnames(counts.Sal.V26) <- cc[cc$NIM_ID %in% colnames(counts.Sal.V26),]$EXHEUS_ID
+rownames(counts.Sal.V26) <- substr(rownames(counts.Sal.V26), 1, 15)
+
+
+counts.Sal.V34 <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.Salmon.V34.txt")
+counts.Sal.V34 <- counts.Sal.V34 %>% remove_rownames %>% column_to_rownames(var="V1")
+colnames(counts.Sal.V34) <- cc[cc$NIM_ID %in% colnames(counts.Sal.V34),]$EXHEUS_ID
+rownames(counts.Sal.V34) <- substr(rownames(counts.Sal.V34), 1, 15)
+
+counts.RSEM.V26 <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.RSEM.txt")
+counts.RSEM.V26 <- counts.RSEM.V26 %>% remove_rownames %>% column_to_rownames(var="V1")
+rownames(counts.RSEM.V26) <- substr(rownames(counts.RSEM.V26), 1, 15)
+```
+
+```{r}
+dim(counts.Sal.V26) # 27,290
+dim(counts.Sal.V34) # 36,806
+dim(counts.RSEM.V26) # 27,290
+```
+
+```{r}
+common.row <- intersect(intersect(rownames(counts.Sal.V26), rownames(counts.Sal.V34)), rownames(counts.RSEM.V26)) # 26,899
+common.col <- intersect(intersect(colnames(counts.Sal.V26), colnames(counts.Sal.V34)), colnames(counts.RSEM.V26)) 
+```
+
+```{r}
+counts.Sal.V26 <- counts.Sal.V26[rownames(counts.Sal.V26) %in% common.row, colnames(counts.Sal.V26) %in% common.col]
+counts.Sal.V34 <- counts.Sal.V34[rownames(counts.Sal.V34) %in% common.row, colnames(counts.Sal.V34) %in% common.col]
+counts.RSEM.V26 <- counts.RSEM.V26[rownames(counts.RSEM.V26) %in% common.row, colnames(counts.RSEM.V26) %in% common.col]
+```
+
+
+```{r}
+if (identical(row.names(counts.Sal.V26), row.names(counts.Sal.V34)) &&
+    identical(row.names(counts.Sal.V26), row.names(counts.RSEM.V26))) {
+  cat("The rownames of the three dataframes ARE the same and in the same order.\n")
+} else {
+  cat("The rownames of the three dataframes are NOT the same or NOT in the same order.\n")
+}
+```
+
+
+```{r}
+if (identical(row.names(counts.Sal.V26), row.names(counts.Sal.V34)) &&
+    identical(row.names(counts.Sal.V26), row.names(counts.RSEM.V26))) {
+  cat("The colnames of the three dataframes ARE the same and in the same order.\n")
+} else {
+  cat("The colnames of the three dataframes are NOT the same or NOT in the same order.\n")
+}
+```
+
+```{r}
+mean(diag(cor(counts.Sal.V26, counts.Sal.V34)))
+```
+
+
+```{r}
+mean(diag(cor(counts.Sal.V26, counts.RSEM.V26)))
+```
+
+
+```{r}
+mean(diag(cor(counts.Sal.V34, counts.RSEM.V26)))
+```
+
+
+
+
+
+

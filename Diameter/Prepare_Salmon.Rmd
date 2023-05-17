@@ -1,0 +1,75 @@
+---
+title: "0.5.Prepare_Salmon_v26_Counts.Rmd"
+author: "Gerard Temprano Sagrera"
+date: "2023-03-15"
+output: html_document
+---
+
+```{r}
+library(stringr);library(data.table)
+```
+
+
+```{r}
+#ff <- list.files("/home/gerard/AAA/Results_Salmon_v34", pattern = ".genes.sf", recursive = T, full.names = T)
+ff <- list.files("/home/gerard/AAA/Results_Salmon", pattern = ".genes.sf", recursive = T, full.names = T)
+
+# Read in the first file of the ff list
+first_file <- read.table(ff[[1]], header = TRUE, row.names = 1)
+
+# Extract the rownames of the first file
+rownames <- rownames(first_file)
+
+# Create an empty dataframe
+counts_tpm <- data.frame(matrix(nrow = length(rownames), ncol = 0))
+
+# Loop through each file in the ff list
+for (i in seq_along(ff)) {
+  # Read in the file
+  file <- read.table(ff[[i]], header = TRUE, row.names = 1)
+  
+  # Extract the TPM column and add it to the counts_tpm dataframe
+  counts_tpm <- cbind(counts_tpm, file[, "TPM"])
+  
+  # Extract the ID from the file path and use it as the column name
+  file_path <- ff[[i]]
+  id <- str_extract(file_path, "(?<=/)[^/]+(?=/quant\\.genes\\.sf$)")
+  colnames(counts_tpm)[i] <- id
+}
+
+# Assign the rownames to the counts_tpm dataframe
+rownames(counts_tpm) <- rownames
+```
+
+```{r}
+dim(counts_tpm)
+head(counts_tpm)
+rowSums(counts_tpm)
+colSums(counts_tpm)
+```
+
+
+```{r}
+#ann <- fread("/home/gerard/AAA/refs/gencode.v34.annotation.fixed.gtf.gz")
+ann <- fread("/home/gerard/AAA/refs/gencode.v26.annotation.fixed.gtf.gz")
+
+# Quantified genes:
+ff <- rownames(counts_tpm)
+
+# Select by annotation and type:
+counts_tpm <- counts_tpm[rownames(counts_tpm) %in% ann$gene_id,]
+counts_tpm <- counts_tpm[order(rownames(counts_tpm)),]
+
+#fwrite(counts_tpm, "/home/gerard/AAA/Gene_Counts/Counts.Salmon.V34.txt", sep = "\t", row.names = T)
+#fwrite(counts_tpm, "/home/gerard/AAA/Gene_Counts/Counts.Salmon.V26_2.txt", sep = "\t", row.names = T)
+```
+
+
+
+
+
+
+
+
+
+
