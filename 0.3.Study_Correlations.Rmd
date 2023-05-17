@@ -41,23 +41,15 @@ bio2$O.ANEURYSM <- as.numeric(bio2$O.ANEURYSM)
 
 
 ```{r}
-tec2 <-  tec[ ,!names(tec) %in% c("SampleID","Case")]
+tec2 <-  tec[ ,!names(tec) %in% c("SampleID")]
 
-names(tec2) <- c("INDEX.i7","INDEX.i5","FC","LANE","LIBRARY","RIN","DV200","QUBIT","GC_MEAN")
+names(tec2) <- c("INDEX.i7","INDEX.i5","FC","LANE","LIBRARY","CASE","RIN","DV200","QUBIT","GC_MEAN")
 
 # Transform to numeric:
 tec2$INDEX.i5 <- as.numeric(as.factor(tec2$INDEX.i5))
 tec2$INDEX.i7 <- as.numeric(as.factor(tec2$INDEX.i7))
 tec2$FC <- as.numeric(as.factor(tec2$FC))
 tec2$LANE <- as.numeric(as.factor(tec2$LANE))
-```
-
-```{r}
-b.cases <- bio2[bio2$STATUS == "1",]
-b.controls <- bio2[bio2$STATUS == "2",]
-
-t.cases <- tec2[1:97,]
-t.controls <- tec2[98:nrow(tec2),]
 ```
 
 
@@ -68,12 +60,41 @@ t.controls <- tec2[98:nrow(tec2),]
 
 # Correlation study:
 
-## ALL:
+## Cases vs Controls:
 
 ```{r}
 # Remove pathology (only available in controls):
 bio2 <- bio2[ ,!names(bio2) %in% c("Pathology")]
 ```
+
+### Technical:
+
+```{r}
+M <- cor(tec2, use = "pairwise.complete.obs")
+testRes <- cor.mtest(tec2, conf.level = 0.95)
+
+M[is.na(M)] <- 0
+testRes$p[is.na(testRes$p)] <- 1
+
+png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Correlations/Correlation_Plot_All_Technical.png", height = 10000, width = 10000, res = 1200)
+corrplot(M, p.mat = testRes$p, sig.level = 0.05, type = "lower", insig = "blank", tl.cex = 1.75, addCoef.col = "black")
+dev.off()
+```
+
+### Biological:
+
+```{r}
+M <- cor(bio2, use = "pairwise.complete.obs")
+testRes <- cor.mtest(tec2, conf.level = 0.95)
+
+M[is.na(M)] <- 0
+testRes$p[is.na(testRes$p)] <- 1
+
+png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Correlations/Correlation_Plot_All_Biological.png", height = 10000, width = 10000, res = 1200)
+corrplot(M, p.mat = testRes$p, sig.level = 0.05, type = "lower", insig = "blank", tl.cex = 1.75, addCoef.col = "black")
+dev.off()
+```
+
 
 ### Merge all covariates:
 
@@ -92,264 +113,83 @@ testRes$p[is.na(testRes$p)] <- 1
 png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Correlations/Correlation_Plot_All.png", height = 10000, width = 10000, res = 1200)
 corrplot(M, p.mat = testRes$p, sig.level = 0.05, type = "lower", insig = "blank", tl.cex = 1.75)
 dev.off()
-
-corrplot(M, p.mat = testRes$p, sig.level = 0.05, type = "lower", insig = "blank")
 ```
 
-- Type of aneurysm, height, weight, other aneurysm and size are only available for cases.
 
-- Status with Sex: There are more male among cases.
+### Only Cases (1st Analysis):
 
 ```{r}
-tab <- as.data.frame(prop.table(table(bio2$STATUS, bio2$SEX)))
+tec <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/First Analysis/Technical_CompleteV2.xlsx")
+tec <- tec %>% remove_rownames %>% column_to_rownames(var="SampleID")
 
-ggplot(tab, aes(x = Var1, y = Freq, fill=Var2)) + geom_col() + labs(x = "Status", fill = "Sex") +
-  scale_x_discrete(breaks = c(1,2), labels = c("Case","Control")) +
-  scale_fill_discrete(breaks = c(1,2), labels = c("Male","Female"))
+tec2 <-  tec[ ,!names(tec) %in% c("Seq_ID")]
+
+names(tec2) <- c("FC","DATE","BATCH","CASE","GC_MEAN","RIN","DV200","QUBIT")
+
+# Transform to numeric:
+tec2$FC <- as.numeric(as.factor(tec2$FC))
+tec2$DATE <- as.numeric(as.factor(tec2$DATE))
+tec2$BATCH <- as.numeric(as.factor(tec2$BATCH))
+
+tec2 <- tec2[tec2$CASE == 1,]
+
+# All the same:
+tec2 <-  tec2[ ,!names(tec2) %in% c("CASE", "FC")]
 ```
 
-- Status with Age: Cases are older.
+### Technical:
 
 ```{r}
-ggboxplot(bio2, x = "STATUS", y = "AGE") +
-  geom_boxplot() +
-  stat_compare_means(method = "t.test", label.y = 100) +
-  scale_x_discrete(breaks = c(1,2), labels = c("Case","Control"))
-```
-
-
-- Status with Smoking: There are less smokers in controls.
-
-```{r}
-tab <- as.data.frame(prop.table(table(bio2$STATUS, bio2$SMOKING)))
-
-ggplot(tab, aes(x = Var1, y = Freq, fill=Var2)) + geom_col() + labs(x = "Status", fill = "Smoking") +
-  scale_x_discrete(breaks = c("1","2"), labels = c("Case","Control")) +
-  scale_fill_discrete(breaks = c(0,1,2), labels = c("Never","Past","Currently"))
-```
-
-
-- Sex with Smoking: There are more smokers among men (There are more cases in men).
-
-```{r}
-tab <- as.data.frame(prop.table(table(bio2$SEX, bio2$SMOKING)))
-
-ggplot(tab, aes(x = Var1, y = Freq, fill=Var2)) + geom_col() + labs(x = "Sex", fill = "Smoking Status") +
-  scale_x_discrete(breaks = c("1","2"), labels = c("Man","Woman")) +
-  scale_fill_discrete(breaks = c("0","1","2"), labels = c("Never","Past","Currently"))
-```
-
-- Age with Weight: Weight reduced with age.
-
-```{r, warning=FALSE}
-ggscatter(bio2, x = "AGE", y = "WEIGHT",
-          add = "reg.line") +
-  stat_cor(method = "pearson")
-```
-
-- Type of Aneurysm with Symptoms: There are more symptoms with Inflammatory aneurysms.
-
-```{r}
-tab <- as.data.frame(prop.table(table(bio2$TYPE, bio2$SYMPTOMS)))
-
-ggplot(tab, aes(x = Var1, y = Freq, fill=Var2)) + geom_col() + labs(x = "Type", fill = "Symptoms") +
-  scale_x_discrete(breaks = c("1","2"), labels = c("Atherosclerotic","Inflammatory")) +
-  scale_fill_discrete(breaks = c("0","1"), labels = c("No", "Yes"))
-```
-
-
-- Type with Aortic Diameter: Inflammatory aneurysms have bigger diameters.
-
-```{r}
-ggboxplot(subset(bio2, !is.na(TYPE)), x = "TYPE", y = "DIAMETER") +
-  geom_boxplot() +
-  stat_compare_means(method = "t.test", label.y = 110) +
-  scale_x_discrete(breaks = c(1,2), labels = c("Atherosclerotic","Inflammatory"))
-```
-
-- Symptoms with Smoking:
-
-```{r}
-tab <- as.data.frame(prop.table(table(bio2$SYMPTOMS, bio2$SMOKING)))
-
-ggplot(tab, aes(x = Var1, y = Freq, fill=Var2)) + geom_col() + labs(x = "Symptomatic", fill = "Smoking Status") +
-  scale_x_discrete(breaks = c("0","1"), labels = c("Asymptomatic","Symptomatic")) +
-  scale_fill_discrete(breaks = c("0","1","2"),labels = c("Never", "Past", "Present"))
-```
-
-- Symptoms with Diameter: Symptomatic aneurysms are bigger.
-
-```{r}
-ggboxplot(subset(bio2, !is.na(SYMPTOMS)), x = "SYMPTOMS", y = "DIAMETER") +
-  geom_boxplot() +
-  stat_compare_means(method = "t.test", label.y = 110) +
-  scale_x_discrete(breaks = c(0,1), labels = c("Asymptomatic","Symptomatic"))
-```
-
-- Weight with Height.
-
-```{r, warning=FALSE}
-ggscatter(bio2, x = "WEIGHT", y = "HEIGHT",
-          add = "reg.line") +
-  stat_cor(method = "pearson")
-```
-
-
-## CASES:
-
-### Merge all covariates:
-
-```{r}
-all.cases <- merge(b.cases, t.cases, by = 0)
-all.cases <- all.cases %>% remove_rownames %>% column_to_rownames(var="Row.names")
-```
-
-```{r}
-# Remove columns that have no variation:
-all.cases <-  all.cases[ ,!names(all.cases) %in% c("STATUS","FC")]
-```
-
-
-```{r}
-M <- cor(all.cases, use = "pairwise.complete.obs")
-testRes <- cor.mtest(all.cases, conf.level = 0.95)
+M <- cor(tec2, use = "pairwise.complete.obs")
+testRes <- cor.mtest(tec2, conf.level = 0.95)
 
 M[is.na(M)] <- 0
 testRes$p[is.na(testRes$p)] <- 1
 
-png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Correlations/Correlation_Plot_Cases.png", height = 10000, width = 10000, res = 1200)
-corrplot(M, p.mat = testRes$p, sig.level = 0.05, type = "lower", insig = "blank")
+png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Correlations/Correlation_Plot_Cases_Technical.png", height = 10000, width = 10000, res = 1200)
+corrplot(M, p.mat = testRes$p, sig.level = 0.05, type = "lower", insig = "blank", tl.cex = 1.75, addCoef.col = "black")
 dev.off()
+```
 
-corrplot(M, p.mat = testRes$p, sig.level = 0.05, type = "lower", insig = "blank")
+### Biological:
+
+```{r}
+bio2 <- bio2[bio2$STATUS == "1",]
+
+# All the same:
+bio2 <-  bio2[ ,!names(bio2) %in% c("STATUS")]
 ```
 
 ```{r}
-# Filter only biological samples:
-filter.cases <-  all.cases[ ,c("SEX","AGE","TYPE","SYMPTOMS","HEIGHT","WEIGHT","SMOKING","O.ANEURYSM","DIAMETER")]
-```
-
-
-```{r}
-M <- cor(filter.cases, use = "pairwise.complete.obs")
-testRes <- cor.mtest(filter.cases, conf.level = 0.95)
+M <- cor(bio2, use = "pairwise.complete.obs")
+testRes <- cor.mtest(bio2, conf.level = 0.95)
 
 M[is.na(M)] <- 0
 testRes$p[is.na(testRes$p)] <- 1
 
 png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Correlations/Correlation_Plot_Cases_Biological.png", height = 10000, width = 10000, res = 1200)
-corrplot(M, p.mat = testRes$p, sig.level = 0.05, type = "lower", insig = "blank", tl.cex = 2)
+corrplot(M, p.mat = testRes$p, sig.level = 0.05, type = "lower", insig = "blank", tl.cex = 1.75, addCoef.col = "black")
 dev.off()
-
-corrplot(M, p.mat = testRes$p, sig.level = 0.05, type = "lower", insig = "blank")
 ```
-
-
-- Age with Weight: Weight reduces with age.
-
-```{r, warning=FALSE}
-ggscatter(b.cases, x = "AGE", y = "WEIGHT",
-          add = "reg.line") +
-  stat_cor(method = "pearson")
-```
-
-
-- Age with Smoking: Currently smokers are younger.
-
-```{r}
-my_comparisons <- list( c("0","1"), c("0", "2"), c("1", "2") )
-
-ggboxplot(subset(b.cases, !is.na(SMOKING)), x = "SMOKING", y = "AGE", color = "SMOKING") +
-  stat_compare_means(comparisons = my_comparisons, label.y = c(90, 110, 130), method = "t.test") +
-  stat_compare_means(label.y = c(150), method = "anova") +
-  scale_x_discrete(breaks = c("0","1","2"), labels = c("Never","Past","Currently Smoking"))
-```
-
-
-- Type of Aneurysm with Symptoms: Atherosclerotic aneurysms have more Symptoms.
-
-```{r}
-tab <- as.data.frame(prop.table(table(b.cases$SYMPTOMS, b.cases$TYPE)))
-
-ggplot(tab, aes(x = Var2, y = Freq, fill=Var1)) + geom_col() + labs(fill = "Symptomatic", x = "Type") +
-  scale_fill_discrete(labels = c("Yes", "No")) +
-  scale_x_discrete(labels = c("Atherosclerotic","Inflammatory"))
-```
-
-
-- Type of Aneurysm with Diameter: Inflammatory aneurysms are bigger.
-
-```{r}
-ggboxplot(subset(b.cases, !is.na(TYPE)), x = "TYPE", y = "DIAMETER") +
-  geom_boxplot() +
-  stat_compare_means(method = "t.test", label.y = 110) +
-  scale_x_discrete(breaks = c(1,2), labels = c("Atherosclerotic","Inflammatory"))
-```
-
-- Symptoms with Smoking:
-
-```{r}
-tab <- as.data.frame(prop.table(table(b.cases$SYMPTOMS, b.cases$SMOKING)))
-
-ggplot(tab, aes(x = Var1, y = Freq, fill=Var2)) + geom_col() + labs(x = "Smoking Status", fill = "Symptoms") +
-  scale_x_discrete(breaks = c("0","1"), labels = c("Asymptomatic","Symptomatic")) +
-  scale_fill_discrete(breaks = c("0","1","2"),labels = c("Never", "Past", "Present"))
- 
-```
-
-
-- Symptoms with Diameter: Symptomatic aneurysms are bigger.
-
-```{r}
-ggboxplot(subset(b.cases, !is.na(SYMPTOMS)), x = "SYMPTOMS", y = "DIAMETER") +
-  geom_boxplot() +
-  stat_compare_means(method = "t.test", label.y = 110) +
-  scale_x_discrete(breaks = c(0,1), labels = c("Asymptomatic","Symptomatic"))
-```
-
-
-- Height with Weight.
-
-```{r, warning=FALSE}
-ggscatter(b.cases, x = "WEIGHT", y = "HEIGHT",
-          add = "reg.line") +
-  stat_cor(method = "pearson")
-```
-
-
-## CONTROLS:
 
 ### Merge all covariates:
 
 ```{r}
-all.controls <- merge(b.controls, t.controls, by = 0)
-all.controls <- all.controls %>% remove_rownames %>% column_to_rownames(var="Row.names")
-```
-
-```{r}
-# Remove columns that have no variation:
-all.controls <-  all.controls[ ,!names(all.controls) %in% c("STATUS","TYPE","SYMPTOMS","HEIGHT","WEIGHT","O.ANEURYSM","DIAMETER")]
+all <- merge(bio2, tec2, by = 0)
+all <- all %>% remove_rownames %>% column_to_rownames(var="Row.names")
 ```
 
 ```{r, warning=FALSE}
-M <- cor(all.controls, use = "pairwise.complete.obs")
-testRes <- cor.mtest(all.controls, conf.level = 0.95)
+M <- cor(all, use = "pairwise.complete.obs")
+testRes <- cor.mtest(all, conf.level = 0.95)
 
 M[is.na(M)] <- 0
 testRes$p[is.na(testRes$p)] <- 1
 
-png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Correlations/Correlation_Plot_Controls.png")
-corrplot(M, p.mat = testRes$p, sig.level = 0.05, type = "lower", insig = "blank", tl.cex = 2)
+png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Correlations/Correlation_Plot_Cases.png", height = 10000, width = 10000, res = 1200)
+corrplot(M, p.mat = testRes$p, sig.level = 0.05, type = "lower", insig = "blank", tl.cex = 1.75)
 dev.off()
-
-corrplot(M, p.mat = testRes$p, sig.level = 0.05, type = "lower", insig = "blank", tl.cex = 2)
 ```
-
-
-
-
-
-
 
 
 
