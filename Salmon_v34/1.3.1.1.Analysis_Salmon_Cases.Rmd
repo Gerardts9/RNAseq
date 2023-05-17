@@ -12,14 +12,14 @@ library(data.table);library(edgeR);library(tidyverse);library(openxlsx);library(
 ### Load TPMs counts from Salmon quantification (abundance):
 
 ```{r}
-counts.tpm <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.salmon.txt")
+counts.tpm <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.Salmon.V34_Exh.txt")
 counts.tpm <- counts.tpm %>% remove_rownames %>% column_to_rownames(var="V1")
 ```
 
 ### Select only cases on technical variables:
 
 ```{r}
-tec <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/Technical_Complete.xlsx")
+tec <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/First Analysis/Technical_CompleteV2.xlsx")
 
 # Select only cases:
 tec <- tec[1:97,]
@@ -43,6 +43,7 @@ table(bio$Smoking2)
 
 ```{r}
 ann <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Annotation/gencode.v34.annotation.fixed.gtf.gz")
+ann$gene_id <- substr(ann$gene_id, 1, 15)
 ```
 
 ### Select only cases:
@@ -65,22 +66,21 @@ dge <- DGEList(counts = cases.tpm)
 
 design <-
   model.matrix(
-    ~ bio$aortc_diameter_mm + tec$Library + tec$GC_Mean + tec$RIN + tec$Qubit)
+    ~ bio$aortc_diameter_mm + tec$Date + tec$GC_Mean + tec$Batch + tec$RIN)
 
 colnames(design) <-
   c(
     "(Intercept)",
     "Diameter",
-    "Library",
+    "Date",
     "GC_Mean",
-    "RIN",
-    "Qubits")
-
+    "Batch",
+    "RIN")
 
 keep <- filterByExpr(dge, design)
 
-paste0("We keep ", sum(keep), " genes") # 9,602
-paste0("We remove ", sum(!keep), " genes") # 27,110
+paste0("We keep ", sum(keep), " genes") # 10,222
+paste0("We remove ", sum(!keep), " genes") # 26,501
 
 dge <- dge[keep, , keep.lib.sizes = FALSE]
 
@@ -89,31 +89,28 @@ dge <- dge[keep, , keep.lib.sizes = FALSE]
 tpm.rows <- rownames(dge$counts)
 tpm.cols <- colnames(dge$counts)
 
-dge$counts <-
-  as.data.frame(normalize.quantiles(as.matrix(dge$counts)))
+cases.tpm <- as.data.frame(normalize.quantiles(as.matrix(dge$counts)))
 
-rownames(dge$counts) <- tpm.rows
-colnames(dge$counts) <- tpm.cols
+rownames(cases.tpm) <- tpm.rows
+colnames(cases.tpm) <- tpm.cols
 
 # Differential Expression:
 
-print(paste0("There are ", sum(is.na(
-  bio$aortc_diameter_mm
-)), " NAs"))
+print(paste0("There are ", sum(is.na(bio$aortc_diameter_mm)), " NAs"))
 
 Pvalue <-
-  apply(dge$counts, 1, function(x)
+  apply(cases.tpm, 1, function(x)
     summary(
       lm(
-        x ~ bio$aortc_diameter_mm + tec$Library + tec$GC_Mean + tec$RIN + tec$Qubit
+        x ~ bio$aortc_diameter_mm + tec$Date + tec$GC_Mean + tec$Batch + tec$RIN
       )
     )[4][[1]][2, 4])
 
 Coef <-
-  apply(dge$counts, 1, function(x)
+  apply(cases.tpm, 1, function(x)
     summary(
       lm(
-        x ~ bio$aortc_diameter_mm + tec$Library + tec$GC_Mean + tec$RIN + tec$Qubit
+        x ~ bio$aortc_diameter_mm + tec$Date + tec$GC_Mean + tec$Batch + tec$RIN
       )
     )[4][[1]][2, 1])
 ```
@@ -123,7 +120,7 @@ Coef <-
 #hist(Pvalue, main = "", cex.main = 2)
 #dev.off()
 
-hist(Pvalue)
+#hist(Pvalue)
 ```
 
 ```{r}
@@ -132,42 +129,27 @@ qobj <- qvalue(p = Pvalue)
 ```
 
 ```{r, warning=FALSE}
-summary(qobj)
-hist(qobj)
-plot(qobj)
+#summary(qobj)
+#hist(qobj)
+#plot(qobj)
 ```
 
 ```{r}
-Results <- data.frame(
+Results.Salmon.V34 <- data.frame(
   pvalue = Pvalue,
   qvalue = qobj$qvalues,
   fdr = p.adjust(Pvalue, method = "fdr"),
-  pi1 = 1 - qobj$pi0
+  pi1 = 1 - qobj$pi0,
+  Beta = Coef
 )
 
-#write.xlsx(Results[order(Results$pvalue), ][1:76,], "C://Users/Gerard/Desktop/AAA/RNAseq/GitHub/TopTable_Diameter.xlsx", rowNames = TRUE)
-nrow(Results[Results$fdr < 0.05,])
+#write.xlsx(Results.Salmon.V34[order(Results.Salmon.V34$pvalue), ][1:23,], "C://Users/Gerard/Desktop/AAA/RNAseq/GitHub/TopTable_Diameter.xlsx", rowNames = TRUE)
+nrow(Results.Salmon.V34[Results.Salmon.V34$fdr < 0.05,]) # Exh: 45 Exh_0: 15.
+
+rownames(Results.Salmon.V34[Results.Salmon.V34$fdr < 0.05,])
+
+#fwrite(Results.Salmon.V34, "C://Users/Gerard/Desktop/AAA/RNAseq/DEG_Diameter/Salmon.V34_Exh_0.txt", sep = "\t", row.names = T)
 ```
-
-```{r}
-# Extract significant results:
-sig.res <- Results.size[Results.size$pvalue < 0.05,]["pvalue"]
-```
-
-
-```{r}
-Gene_list <- sig.res[,1]
-names(Gene_list) <- rownames(sig.res)
-Gene_list <- Gene_list[order(-Gene_list)]
-
-gse <- gseGO(Gene_list,
-             ont = "BP",
-             keyType = "ENSEMBL",
-             OrgDb = "org.Hs.eg.db",
-             eps = 1e-300)
-```
-
-
 
 
 ### Plot residuals:
@@ -397,297 +379,6 @@ p + scale_fill_manual(name = "", labels=c("Atherosclerotic","Inflammatory"), val
 
 ggsave("C://Users/Gerard/Desktop/AAA/RNAseq/GitHub/CILP.png", width = 7, height = 7)
 ```
-
-## By Symptomathology of Aneurysm (0 Symptomathic 1 Asymptomathic):
-
-```{r}
-# Remove lowly expressed genes using LIMMA:
-
-dge <- DGEList(counts = cases.tpm)
-
-design <-
-  model.matrix(
-    ~ bio$symptomatic + tec$Date + tec$GC_Mean + tec$Batch + tec$RIN + bio$age + bio$Smoking + bio$other_aneurysm
-  )
-
-colnames(design) <-
-  c(
-    "(Intercept)",
-    "Type",
-    "Date202220829",
-    "GC_Mean",
-    "Plate",
-    "RIN",
-    "Age",
-    "Smoking1",
-    "Smoking2",
-    "Other Aneurysm"
-    )
-
-keep <- filterByExpr(dge, design)
-
-paste0("We keep ", sum(keep), " genes") # 10,149
-paste0("We remove ", sum(!keep), " genes") # 26,563
-
-dge <- dge[keep, , keep.lib.sizes = FALSE]
-
-# Apply quantile normalization to  counts:
-
-tpm.rows <- rownames(dge$counts)
-tpm.cols <- colnames(dge$counts)
-
-dge$counts <-
-  as.data.frame(normalize.quantiles(as.matrix(dge$counts)))
-
-rownames(dge$counts) <- tpm.rows
-colnames(dge$counts) <- tpm.cols
-
-# Differential Expression:
-
-print(paste0("There are ", sum(is.na(bio$symptomatic)), " NAs"))
-table(bio$symptomatic, useNA = "always")
-
-Pvalue <-
-  apply(dge$counts, 1, function(x)
-    summary(
-      lm(
-        x ~ bio$symptomatic + tec$Date + tec$GC_Mean + tec$Batch + tec$RIN + bio$age + bio$Smoking + bio$other_aneurysm
-      )
-    )[4][[1]][2, 4])
-Coef <-
-  apply(dge$counts, 1, function(x)
-    summary(
-      lm(
-        x ~ bio$symptomatic + tec$Date + tec$GC_Mean + tec$Batch + tec$RIN + bio$age + bio$Smoking + bio$other_aneurysm
-      )
-    )[4][[1]][2, 1])
-```
-
-```{r}
-# Histogram of p-values:
-hist(Pvalue)
-```
-
-```{r}
-# Create qvalue object:
-qobj <- qvalue(p = Pvalue)
-```
-
-```{r, warning=FALSE}
-summary(qobj)
-hist(qobj)
-plot(qobj)
-```
-
-```{r}
-Results.sympths <- data.frame(
-  pvalue = Pvalue,
-  qvalue = qobj$qvalues,
-  fdr = p.adjust(Pvalue, method = "fdr"),
-  pi1 = 1-qobj$pi0
-)
-
-Results.sympths <- merge(Results.sympths, ann[,c("gene_id","gene_name")], by.x = 0, by.y = "gene_id")
-Results.sympths <- Results.sympths[,-1]
-Results.sympths <- Results.sympths[!duplicated(Results.sympths$gene_name),]
-Results.sympths <- Results.sympths %>% remove_rownames %>% column_to_rownames(var="gene_name")
-
-Results.sympths[order(Results.sympths$pvalue), ][1:40,]
-nrow(Results.sympths[Results.sympths$fdr < 0.05,])
-```
-
-
-
-
-## By Hypertension:
-
-```{r}
-# Remove lowly expressed genes using LIMMA:
-
-dge <- DGEList(counts = cases.tpm)
-
-design <-
-  model.matrix(
-    ~ bio$hypertension + tec$Date + tec$GC_Mean + tec$Batch + tec$RIN + bio$age + bio$Smoking + bio$other_aneurysm + bio$aortc_diameter_mm
-  )
-
-colnames(design) <-
-  c(
-    "(Intercept)",
-    "Hypertension",
-    "Date202220829",
-    "GC_Mean",
-    "Plate",
-    "RIN",
-    "Age",
-    "Smoking1",
-    "Smoking2",
-    "Other Aneurysm",
-    "Aortic Diameter"
-  )
-
-keep <- filterByExpr(dge, design)
-
-paste0("We keep ", sum(keep), " genes") # 10,149
-paste0("We remove ", sum(!keep), " genes") # 26,563
-
-dge <- dge[keep, , keep.lib.sizes = FALSE]
-
-# Apply quantile normalization to  counts:
-
-tpm.rows <- rownames(dge$counts)
-tpm.cols <- colnames(dge$counts)
-
-dge$counts <-
-  as.data.frame(normalize.quantiles(as.matrix(dge$counts)))
-
-rownames(dge$counts) <- tpm.rows
-colnames(dge$counts) <- tpm.cols
-
-# Differential Expression:
-
-print(paste0("There are ", sum(is.na(bio$hypertension)), " NAs"))
-table(bio$hypertension, useNA = "always")
-
-Pvalue <-
-  apply(dge$counts, 1, function(x)
-    summary(
-      lm(
-        x ~ bio$hypertension + tec$Date + tec$GC_Mean + tec$Batch + tec$RIN + bio$age + bio$Smoking + bio$other_aneurysm + bio$aortc_diameter_mm
-      )
-    )[4][[1]][2, 4])
-Coef <-
-  apply(dge$counts, 1, function(x)
-    summary(
-      lm(
-        x ~ bio$hypertension + tec$Date + tec$GC_Mean + tec$Batch + tec$RIN + bio$age + bio$Smoking + bio$other_aneurysm + bio$aortc_diameter_mm
-      )
-    )[4][[1]][2, 1])
-```
-
-```{r}
-# Histogram of p-values:
-hist(Pvalue)
-```
-
-```{r}
-# Create qvalue object:
-qobj <- qvalue(p = Pvalue)
-```
-
-```{r, warning=FALSE}
-summary(qobj)
-hist(qobj)
-plot(qobj)
-```
-
-```{r}
-Results.sympths <- data.frame(
-  pvalue = Pvalue,
-  qvalue = qobj$qvalues,
-  fdr = p.adjust(Pvalue, method = "fdr"),
-  pi1 = 1-qobj$pi0
-)
-
-Results.sympths <- merge(Results.sympths, ann[,c("gene_id","gene_name")], by.x = 0, by.y = "gene_id")
-Results.sympths <- Results.sympths[,-1]
-Results.sympths <- Results.sympths[!duplicated(Results.sympths$gene_name),]
-Results.sympths <- Results.sympths %>% remove_rownames %>% column_to_rownames(var="gene_name")
-
-Results.sympths[order(Results.sympths$pvalue), ][1:40,]
-nrow(Results.sympths[Results.sympths$fdr < 0.05,])
-```
-
-## By Smoking (0 Never 1 Has smoked):
-
-```{r}
-# Remove lowly expressed genes using LIMMA:
-
-#dge <- DGEList(counts=cases.tpm)
-
-#design <-
-#  model.matrix(
-#    ~ bio$Smoking2 + tec$Date + tec$GC_Mean + tec$Batch + tec$RIN + bio$age + bio$other_aneurysm
-#  )
-
-#colnames(design) <- c("(Intercept)", "Smkoking", "Date202220829", "GC_Mean", "Plate", "RIN", "Age", "Other Aneurysm")
-
-#keep <- filterByExpr(dge, design)
-
-#paste0("We keep ", sum(keep), " genes") # 9,602
-#paste0("We remove ", sum(!keep), " genes") # 27,110
-
-#dge <- dge[keep,,keep.lib.sizes=FALSE]
-
-# Apply quantile normalization to  counts:
-
-#tpm.rows <- rownames(dge$counts)
-#tpm.cols <- colnames(dge$counts)
-
-#dge$counts <- as.data.frame(normalize.quantiles(as.matrix(dge$counts)))
-
-#rownames(dge$counts) <- tpm.rows
-#colnames(dge$counts) <- tpm.cols
-
-# Differential Expression:
-
-
-#print(paste0("There are ", sum(is.na(bio$symptomatic)), " NAs"))
-#table(bio$TIPOANEURISMA, useNA = "always")
-
-#Pvalue <-
-#  apply(dge$counts, 1, function(x)
-#    summary(
-#      lm(
-#        x ~ bio$Smoking2 + tec$Date + tec$GC_Mean + tec$Batch + tec$RIN + bio$age + bio$other_aneurysm
-#      )
-#    )[4][[1]][2, 4])
-#Coef <-
-#  apply(dge$counts, 1, function(x)
-#    summary(
-#      lm(
-#        x ~ bio$Smoking2 + tec$Date + tec$GC_Mean + tec$Batch + tec$RIN + bio$age + bio$other_aneurysm
-#      )
-#    )[4][[1]][2, 1])
-```
-
-```{r}
-# Histogram of p-values:
-#hist(Pvalue)
-```
-
-```{r}
-# Create qvalue object:
-#qobj <- qvalue(p = Pvalue)
-```
-
-```{r, warning=FALSE}
-#summary(qobj)
-#hist(qobj)
-#plot(qobj)
-```
-
-```{r}
-#Results.smoking <- data.frame(
-#  pvalue = Pvalue,
-#  qvalue = qobj$qvalues,
-#  fdr = p.adjust(Pvalue, method = "fdr"),
-#  pi1 = 1-qobj$pi0
-#)
-
-#Results.smoking <- merge(Results.smoking, ann[,c("gene_id","gene_name")], by.x = 0, by.y = "gene_id")
-#Results.smoking <- Results.smoking[,-1]
-#Results.smoking <- Results.smoking[!duplicated(Results.smoking$gene_name),]
-#Results.smoking <- Results.smoking %>% remove_rownames %>% column_to_rownames(var="gene_name")
-
-#Results.smoking[order(Results.smoking$pvalue), ][1:40,]
-```
-
-
-
-
-
-
 
 
 
