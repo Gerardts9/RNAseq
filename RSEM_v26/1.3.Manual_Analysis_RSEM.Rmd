@@ -385,7 +385,6 @@ ggplot(res, aes(x = aortc_diameter_mm, y = Expression)) + geom_point(color = "or
     axis.line = element_line(colour = "black")
   )
 
-
 #ggsave("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/PCSK9_Diameter.png")
 ```
 
