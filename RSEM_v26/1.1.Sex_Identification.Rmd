@@ -14,8 +14,7 @@ library(data.table);library(stringr);library(openxlsx);library(stringr);library(
 ```{r}
 genes <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Annotation/gencode.v26.annotation.fixed.gtf.gz")
 
-counts.tpm <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.RSEM.141.txt")
-counts.tpm <- counts.tpm %>% remove_rownames %>% column_to_rownames(var="V1")
+counts.tpm <- read.table("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.RSEM.All.txt")
 ```
 
 
@@ -82,8 +81,8 @@ Female <- ggplot(data = counts.sex.log.scaled, aes(x=XIST, y=Chromosome_Y, color
 
 
 ```{r}
-ggsave(file="C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Sex_Identification1.png", Male)
-ggsave(file="C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Sex_Identification2.png", Female)
+ggsave(file="C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Sex_Identification_Male.png", Male)
+ggsave(file="C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Sex_Identification_Female.png", Female)
 ```
 
 ### Check the sex between the controls we could not identify:
@@ -113,15 +112,24 @@ counts.sex.log.scaled[!counts.sex.log.scaled$Pheno.Sex == counts.sex.log.scaled$
 ```
 
 
+# Remove mismatched sample from count files:
+
+```{r}
+counts <- read.table("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.RSEM.All.txt")
+counts <- counts[, !(names(counts) %in% "HSP075")]
+dim(counts) # 140 Samples.
+
+#write.table(counts, file = "C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.RSEM.All.txt", quote = FALSE, sep = "\t", row.names = TRUE, col.names = TRUE)
+```
 
 
+```{r}
+counts <- read.table("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.RSEM.Cases.txt")
+counts <- counts[, !(names(counts) %in% "HSP075")]
+dim(counts) # 96 Samples.
 
-
-
-
-
-
-
+#write.table(counts, file = "C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.RSEM.Cases.txt", quote = FALSE, sep = "\t", row.names = TRUE, col.names = TRUE)
+```
 
 
 
