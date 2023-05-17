@@ -11,7 +11,7 @@ library(stringr);library(data.table)
 
 
 ```{r}
-ff <- list.files("/home/gerard/AAA/Results_Salmon2", pattern = ".genes.sf", recursive = T, full.names = T)
+ff <- list.files("/home/gerard/AAA/Results_Salmon", pattern = ".genes.sf", recursive = T, full.names = T)
 
 # Read in the first file of the ff list
 first_file <- read.table(ff[[1]], header = TRUE, row.names = 1)
