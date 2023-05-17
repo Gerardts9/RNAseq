@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r, warning=FALSE, message=FALSE, echo=FALSE}
-library(data.table);library(edgeR);library(tidyverse);library(openxlsx);library(preprocessCore);library("org.Hs.eg.db");library(stats);library(qvalue);library(ggpubr)
+library(data.table);library(edgeR);library(tidyverse);library(openxlsx);library(preprocessCore);library("org.Hs.eg.db");library(stats);library(qvalue);library(ggpubr);library(VennDiagram);library(grid)
 ```
 
 ### Load Annotation file to change format names:
@@ -18,55 +18,55 @@ ann <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Annotation/gencode.v26.annotat
 ### Counts are already in TPM from RSEM:
 
 ```{r}
-counts.tpm <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.RSEM.txt")
-counts.tpm <- counts.tpm %>% remove_rownames %>% column_to_rownames(var="V1")
-
-cases.tpm <- counts.tpm[,1:96]
-ncol(cases.tpm)
+counts.tpm <- read.table("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.RSEM.Cases.txt")
 ```
 
 ### Subset significant genes when comparing cases vs controls:
 
 ```{r}
 #sig.genes <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Significant_genes.txt", header = F)
-sig.genes <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Significant_genes_smoking.txt", header = F)
+#sig.genes <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Significant_genes_smoking.txt", header = F)
 
-cases.tpm <- cases.tpm[rownames(cases.tpm) %in% sig.genes$V1,]
+#counts.tpm <- counts.tpm[rownames(counts.tpm) %in% sig.genes$V1,]
 ```
 
-### Create a case/control variable:
+### Load technical data and subset to cases:
 
 ```{r}
-tec <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/Technical_Complete.xlsx")
-tec <- tec[tec$Seq_ID %in% colnames(cases.tpm),]
+tec <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/First Analysis/Technical_CompleteV2.xlsx")
+tec <- tec[tec$SampleID %in% colnames(counts.tpm),]
 ```
 
-### Load Biological data to make comparissons:
+### Load biological data and subset to cases:
 
 ```{r}
 bio <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/20221115_Datos Pacientes.xlsx")
-bio <- bio[bio$Muestra %in% colnames(cases.tpm),]
+bio <- bio[bio$Muestra %in% colnames(counts.tpm),]
 
 # Smoking:
 bio$Smoking2 <- ifelse(bio$Smoking == 0, 0, 1)
 ```
 
-### By Size:
+
+### By Diameter:
 
 ```{r}
-dge <- DGEList(counts = cases.tpm)
+dge <- DGEList(counts = counts.tpm)
 
 design <-
   model.matrix(
-    ~ bio$aortc_diameter_mm + tec$Library + tec$GC_Mean + tec$RIN + tec$Qubit)
+    ~ bio$aortc_diameter_mm + tec$Date + tec$Batch + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age)
 
 colnames(design) <-
   c("(Intercept)",
     "Diameter",
-    "Library",
+    "Date",
+    "Batch",
     "GC_Mean",
     "RIN",
-    "Qubit")
+    "DV200",
+    "Qubit",
+    "Age")
 ```
 
 ### Remove lowely expressed genes using LIMMA:
@@ -74,8 +74,8 @@ colnames(design) <-
 ```{r}
 keep <- filterByExpr(dge, design)
 
-paste0("We keep ", sum(keep), " genes") # 10,551 or 4,761.
-paste0("We remove ", sum(!keep), " genes") # 16,739 or 455.
+paste0("We keep ", sum(keep), " genes") # 10,575.
+paste0("We remove ", sum(!keep), " genes") # 16,715.
 
 dge <- dge[keep,,keep.lib.sizes=FALSE]
 ```
@@ -83,34 +83,26 @@ dge <- dge[keep,,keep.lib.sizes=FALSE]
 ### Apply quantile normalization to counts:
 
 ```{r}
-tpm.rows <- rownames(dge$counts)
-tpm.cols <- colnames(dge$counts)
-
-cases.tpm <- as.data.frame(normalize.quantiles(as.matrix(dge$counts)))
-
-rownames(cases.tpm) <- tpm.rows
-colnames(cases.tpm) <- tpm.cols
+counts.tpm <- as.data.frame(normalize.quantiles(as.matrix(dge$counts), keep.names = TRUE))
 ```
 
 ### Manual Differential Expression:
 
 ```{r}
-print(paste0("There are ", sum(is.na(
-  bio$aortc_diameter_mm
-)), " NAs"))
+print(paste0("There are ",sum(is.na(bio$aortc_diameter_mm))," NAs"))
 
 Pvalue <-
-  apply(dge$counts, 1, function(x)
+  apply(counts.tpm, 1, function(x)
     summary(
       lm(
-        x ~ bio$aortc_diameter_mm + tec$FC + tec$Library + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit
+        x ~ bio$aortc_diameter_mm + tec$Date + tec$Batch + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age
       )
     )[4][[1]][2, 4])
 Coef <-
-  apply(dge$counts, 1, function(x)
+  apply(counts.tpm, 1, function(x)
     summary(
       lm(
-        x ~ bio$aortc_diameter_mm + tec$FC + tec$Library + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit
+        x ~ bio$aortc_diameter_mm + tec$Date + tec$Batch + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age
       )
     )[4][[1]][2, 1])
 ```
@@ -133,9 +125,9 @@ qobj <- qvalue(p = Pvalue)
 ```
 
 ```{r, warning=FALSE}
-summary(qobj)
-hist(qobj)
-plot(qobj)
+#summary(qobj)
+#hist(qobj)
+#plot(qobj)
 ```
 
 ```{r}
@@ -148,33 +140,106 @@ Results <- data.frame(
 )
 
 Results <- merge(Results, ann[,c("gene_id","gene_name")], by.x = 0, by.y = "gene_id")
-Results <- Results[,-1]
+names(Results)[names(Results) == "Row.names"] <- "gene_id"
 Results <- Results[!duplicated(Results$gene_name),]
 Results <- Results %>% remove_rownames %>% column_to_rownames(var="gene_name")
-
 Results <- Results[order(Results$pvalue),]
-#write.xlsx(Results[order(Results$pvalue), ][1:10,],"C://Users/Gerard/Desktop/AAA/RNAseq/TopTable.xlsx", rowNames = TRUE)
 
-Results[Results$fdr < 0.05,]
+nrow(Results[Results$fdr < 0.05,]) # 41
+
+#fwrite(Results[Results$fdr < 0.05,], "C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Diameter.txt", sep = "\t", row.names = T)
 ```
+
+
+### Compare with previous results (Tunica-Specific) and Cases vs Controls results:
+
+```{r}
+# Load Results:
+cc <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Cases_Controls.txt")
+dia <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Diameter.txt")
+
+med <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/TunicaSpecificResults.xlsx", sheet = 1)
+med$Gene.Symbol <- gsub("-", "", med$Gene.Symbol)
+
+adv <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/TunicaSpecificResults.xlsx", sheet = 2)
+adv$Gene.Symbol <- gsub("-", "", adv$Gene.Symbol)
+```
+
+
+### DEG:
+
+```{r}
+library(clusterProfiler);library(org.Hs.eg.db);library(enrichplot);library(ggplot2)
+```
+
+### Diameter:
+
+```{r}
+gene_list <- substr(dia[dia$fdr < 0.05,]$gene_id, 1, 15)
+
+entrez_ids <- bitr(gene_list, fromType = "ENSEMBL", toType = "ENTREZID", OrgDb = org.Hs.eg.db)
+
+# GO enrichment analysis
+go_enrich <- enrichGO(gene          = entrez_ids$ENTREZID,
+                      OrgDb         = org.Hs.eg.db,
+                      keyType       = "ENTREZID",
+                      ont           = "ALL", # Choose from "BP" (Biological Process), "CC" (Cellular Component), or "MF" (Molecular Function)
+                      pAdjustMethod = "BH",
+                      pvalueCutoff  = 0.1,
+                      qvalueCutoff  = 0.2)
+```
+
+```{r}
+# GO enrichment dot plot:
+png("C://Users/Gerard/Desktop/GO_Enrichment_Diameter.png", width = 4*800, height = 4*600, res = 300)
+dotplot(go_enrich, showCategory = 10) + ggtitle("GO Enrichment")
+dev.off()
+```
+
+```{r}
+# KEGG enrichment analysis
+kegg_enrich <- enrichKEGG(gene         = entrez_ids$ENTREZID,
+                          organism     = "hsa",
+                          keyType      = "kegg",
+                          pAdjustMethod = "BH",
+                          pvalueCutoff = 0.1,
+                          qvalueCutoff = 0.2)
+```
+
+```{r}
+# KEGG enrichment dot plot
+png("C://Users/Gerard/Desktop/KEGG_Enrichment_Diameter.png", width = 4*800, height = 4*600, res = 300)
+dotplot(kegg_enrich, showCategory = 15) + ggtitle("KEGG Enrichment")
+dev.off()
+```
+
+
 
 
 ### By Type:
 
 ```{r}
-dge <- DGEList(counts = cases.tpm)
+counts.tpm <- read.table("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.RSEM.Cases.txt")
+```
+
+
+```{r}
+dge <- DGEList(counts = counts.tpm)
 
 design <-
   model.matrix(
-    ~ bio$TIPOANEURISMA + tec$Library + tec$GC_Mean + tec$RIN + tec$Qubit)
+    ~ bio$TIPOANEURISMA + tec$Date + tec$Batch + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age)
 
 colnames(design) <-
   c("(Intercept)",
-    "Type",
-    "Library",
+    "Diameter",
+    "Date",
+    "Batch",
     "GC_Mean",
     "RIN",
-    "Qubit")
+    "DV200",
+    "Qubit",
+    "Age")
 ```
 
 ### Remove lowely expressed genes using LIMMA:
@@ -182,8 +247,8 @@ colnames(design) <-
 ```{r}
 keep <- filterByExpr(dge, design)
 
-paste0("We keep ", sum(keep), " genes") # 10,551
-paste0("We remove ", sum(!keep), " genes") # 16,739
+paste0("We keep ", sum(keep), " genes") # 10,885
+paste0("We remove ", sum(!keep), " genes") # 16,405
 
 dge <- dge[keep,,keep.lib.sizes=FALSE]
 ```
@@ -191,32 +256,26 @@ dge <- dge[keep,,keep.lib.sizes=FALSE]
 ### Apply quantile normalization to counts:
 
 ```{r}
-tpm.rows <- rownames(dge$counts)
-tpm.cols <- colnames(dge$counts)
-
-cases.tpm <- as.data.frame(normalize.quantiles(as.matrix(dge$counts)))
-
-rownames(cases.tpm) <- tpm.rows
-colnames(cases.tpm) <- tpm.cols
+counts.tpm <- as.data.frame(normalize.quantiles(as.matrix(dge$counts), keep.names = TRUE))
 ```
 
 ```{r}
 print(paste0("There are ", sum(is.na(
-  bio$aortc_diameter_mm
+  bio$TIPOANEURISMA
 )), " NAs"))
 
 Pvalue <-
   apply(dge$counts, 1, function(x)
     summary(
       lm(
-        x ~ bio$TIPOANEURISMA + tec$FC + tec$Library + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit
+        x ~ bio$TIPOANEURISMA + tec$Date + tec$Batch + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age
       )
     )[4][[1]][2, 4])
 Coef <-
   apply(dge$counts, 1, function(x)
     summary(
       lm(
-        x ~ bio$TIPOANEURISMA + tec$FC + tec$Library + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit
+        x ~ bio$TIPOANEURISMA + tec$Date + tec$Batch + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age
       )
     )[4][[1]][2, 1])
 ```
@@ -225,9 +284,9 @@ Coef <-
 ### Plot P-values:
 
 ```{r}
-png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Hist_Type.png", height = 10000, width = 10000, res = 1200)
-hist(Pvalue, main = "", cex.main = 2)
-dev.off()
+#png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Hist_Type.png", height = 10000, width = 10000, res = 1200)
+#hist(Pvalue, main = "", cex.main = 2)
+#dev.off()
 
 hist(Pvalue, main = "Type", cex.main = 2)
 ```
@@ -239,9 +298,9 @@ qobj <- qvalue(p = Pvalue)
 ```
 
 ```{r, warning=FALSE}
-summary(qobj)
-hist(qobj)
-plot(qobj)
+#summary(qobj)
+#hist(qobj)
+#plot(qobj)
 ```
 
 ```{r}
@@ -259,16 +318,117 @@ Results <- Results[!duplicated(Results$gene_name),]
 Results <- Results %>% remove_rownames %>% column_to_rownames(var="gene_name")
 
 Results <- Results[order(Results$pvalue),]
-#write.xlsx(Results[order(Results$pvalue), ][1:10,],"C://Users/Gerard/Desktop/AAA/RNAseq/TopTable.xlsx", rowNames = TRUE)
 
-nrow(Results[Results$fdr < 0.05,])
+nrow(Results[Results$fdr < 0.05,]) # 0
 ```
 
 
 
 
+### By Symptoms:
+
+```{r}
+counts.tpm <- read.table("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.RSEM.Cases.txt")
+```
 
 
+```{r}
+dge <- DGEList(counts = counts.tpm)
+
+design <-
+  model.matrix(
+    ~ bio$symptomatic + tec$Date + tec$Batch + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age)
+
+colnames(design) <-
+  c("(Intercept)",
+    "Symptoms",
+    "Date",
+    "Batch",
+    "GC_Mean",
+    "RIN",
+    "DV200",
+    "Qubit",
+    "Age")
+```
+
+### Remove lowely expressed genes using LIMMA:
+
+```{r}
+keep <- filterByExpr(dge, design)
+
+paste0("We keep ", sum(keep), " genes") # 10,575
+paste0("We remove ", sum(!keep), " genes") # 16,715
+
+dge <- dge[keep,,keep.lib.sizes=FALSE]
+```
+
+### Apply quantile normalization to counts:
+
+```{r}
+counts.tpm <- as.data.frame(normalize.quantiles(as.matrix(dge$counts), keep.names = TRUE))
+```
+
+```{r}
+print(paste0("There are ", sum(is.na(
+  bio$symptomatic
+)), " NAs"))
+
+Pvalue <-
+  apply(dge$counts, 1, function(x)
+    summary(
+      lm(
+        x ~ bio$symptomatic + tec$Date + tec$Batch + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age
+      )
+    )[4][[1]][2, 4])
+Coef <-
+  apply(dge$counts, 1, function(x)
+    summary(
+      lm(
+        x ~ bio$symptomatic + tec$Date + tec$Batch + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age
+      )
+    )[4][[1]][2, 1])
+```
 
 
+### Plot P-values:
+
+```{r}
+#png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Hist_Type.png", height = 10000, width = 10000, res = 1200)
+#hist(Pvalue, main = "", cex.main = 2)
+#dev.off()
+
+hist(Pvalue, main = "Type", cex.main = 2)
+```
+
+### Create qvalue object:
+
+```{r}
+qobj <- qvalue(p = Pvalue)
+```
+
+```{r, warning=FALSE}
+#summary(qobj)
+#hist(qobj)
+#plot(qobj)
+```
+
+```{r}
+Results <- data.frame(
+  pvalue = Pvalue,
+  qvalue = qobj$qvalues,
+  fdr = p.adjust(Pvalue, method = "fdr"),
+  pi1 = 1-qobj$pi0,
+  Beta = Coef
+)
+
+Results <- merge(Results, ann[,c("gene_id","gene_name")], by.x = 0, by.y = "gene_id")
+names(Results)[names(Results) == "Row.names"] <- "gene_id"
+Results <- Results[!duplicated(Results$gene_name),]
+Results <- Results %>% remove_rownames %>% column_to_rownames(var="gene_name")
+Results <- Results[order(Results$pvalue),]
+
+nrow(Results[Results$fdr < 0.05,]) # 25
+
+#fwrite(Results[Results$fdr < 0.05,], "C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Symptoms.txt", sep = "\t", row.names = T)
+```
 

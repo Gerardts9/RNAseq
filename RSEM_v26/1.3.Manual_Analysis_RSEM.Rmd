@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r, warning=FALSE, message=FALSE, echo=FALSE}
-library(data.table);library(edgeR);library(tidyverse);library(openxlsx);library(preprocessCore);library("org.Hs.eg.db");library(stats);library(qvalue);library(ggpubr)
+library(data.table);library(edgeR);library(tidyverse);library(openxlsx);library(preprocessCore);library("org.Hs.eg.db");library(stats);library(qvalue);library(ggpubr);library(VennDiagram)
 ```
 
 ### Load Annotation file to change format names:
@@ -18,26 +18,46 @@ ann <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Annotation/gencode.v26.annotat
 ### Counts are already in TPM from RSEM:
 
 ```{r}
-counts.tpm <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.RSEM.txt")
-counts.tpm <- counts.tpm %>% remove_rownames %>% column_to_rownames(var="V1")
+counts.tpm <- read.table("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.RSEM.All.txt")
 ```
 
-### Create a case/control variable:
+```{r}
+tpm_matrix <- as.matrix(counts.tpm)
+#top10_genes_tpm <- tpm_matrix[1:10, ]
+
+#for (i in 1:nrow(top10_genes_tpm)) {
+#  gene_tpm <- top10_genes_tpm[i, ]
+#  gene_name <- rownames(top10_genes_tpm)[i]
+#  plot_data <- data.frame(Sample = colnames(top10_genes_tpm), TPM = gene_tpm)
+#  
+#  p <- ggplot(plot_data, aes(x = TPM)) +
+#    geom_density() +
+#    ggtitle(paste("Density plot for gene", gene_name))
+#  
+#  print(p)
+#}
+```
+
+### Load technical table :
 
 ```{r}
 tec <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/Technical_Complete.xlsx")
 tec <- tec[tec$Seq_ID %in% colnames(counts.tpm),]
 ```
 
-### Load Biological data to make comparissons:
+### Load Biological data:
 
 ```{r}
 bio <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/20221115_Datos Pacientes.xlsx")
+bio <- bio[2:nrow(bio),]
 bio <- bio[bio$Muestra %in% colnames(counts.tpm),]
+
+table(bio$Status)
 
 # Smoking:
 bio$Smoking2 <- ifelse(bio$Smoking == 0, 0, 1)
 ```
+
 
 ### Convert TPM counts to DGElist object:
 
@@ -50,7 +70,7 @@ AAA <- factor(x = c(rep("Case", 96), rep("Control", 44)),
 
 # Batch and FC are not included because are highly correlated with AAA:
 design <-
-  model.matrix(~ AAA + tec$FC + tec$Lane + tec$Library + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$SEXO + bio$age + bio$Smoking)
+  model.matrix(~ AAA + tec$FC + tec$Lane + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$SEXO + bio$age)
 
 colnames(design) <-
   c("(Intercept)",
@@ -59,18 +79,15 @@ colnames(design) <-
     "FC2",
     "Lane1",
     "Lane2",
-    "Library",
     "GC_Mean",
     "RIN",
     "DV200",
     "Qubit",
     "Sex",
-    "Age",
-    "Smoking1",
-    "Smoking2")
+    "Age")
 ```
 
-### Remove lowely expressed genes using LIMMA:
+### Remove lowely expressed genes using EdgeR:
 
 ```{r}
 keep <- filterByExpr(dge, design)
@@ -84,14 +101,28 @@ dge <- dge[keep,,keep.lib.sizes=FALSE]
 ### Apply quantile normalization to counts:
 
 ```{r}
-tpm.rows <- rownames(dge$counts)
-tpm.cols <- colnames(dge$counts)
-
-counts.tpm <- as.data.frame(normalize.quantiles(as.matrix(dge$counts)))
-
-rownames(counts.tpm) <- tpm.rows
-colnames(counts.tpm) <- tpm.cols
+counts.tpm <- as.data.frame(normalize.quantiles(as.matrix(dge$counts), keep.names = T))
 ```
+
+
+```{r}
+tpm_matrix <- as.matrix(counts.tpm)
+
+#top10_genes_tpm <- tpm_matrix[1:10, ]
+
+#for (i in 1:nrow(top10_genes_tpm)) {
+#  gene_tpm <- top10_genes_tpm[i, ]
+#  gene_name <- rownames(top10_genes_tpm)[i]
+#  plot_data <- data.frame(Sample = colnames(top10_genes_tpm), TPM = gene_tpm)
+#  
+#  p <- ggplot(plot_data, aes(x = TPM)) +
+#    geom_density() +
+#    ggtitle(paste("Density plot for gene", gene_name))
+  
+#  print(p)
+#}
+```
+
 
 ### Manual Differential Expression:
 
@@ -100,14 +131,14 @@ Pvalue <-
   apply(counts.tpm, 1, function(x)
     summary(
       lm(
-        x ~ tec$Case + tec$FC + tec$Lane + tec$Library + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age + bio$SEXO + bio$Smoking
+        x ~ tec$Case + tec$FC + tec$Lane + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age + bio$SEXO
       )
     )[4][[1]][2, 4])
 Coef <-
   apply(counts.tpm, 1, function(x)
     summary(
       lm(
-        x ~ tec$Case + tec$FC + tec$Lane + tec$Library + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age + bio$SEXO + bio$Smoking
+        x ~ tec$Case + tec$FC + tec$Lane + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age + bio$SEXO
       )
     )[4][[1]][2, 1])
 ```
@@ -116,7 +147,7 @@ Coef <-
 ### Plot P-values:
 
 ```{r}
-#png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Hist_Cases_vs_Controls.png", height = 10000, width = 10000, res = 1200)
+#png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Hist_Cases_vs_Controls.png", height = 10000, width = 10000, res #= 1200)
 #hist(Pvalue, main = "", cex.main = 2)
 #dev.off()
 
@@ -130,9 +161,9 @@ qobj <- qvalue(p = Pvalue)
 ```
 
 ```{r, warning=FALSE}
-summary(qobj)
-hist(qobj)
-plot(qobj)
+#summary(qobj)
+#hist(qobj)
+#plot(qobj)
 ```
 
 ```{r}
@@ -145,23 +176,121 @@ Results <- data.frame(
 )
 
 Results <- merge(Results, ann[,c("gene_id","gene_name")], by.x = 0, by.y = "gene_id")
-Results <- Results[,-1]
+names(Results)[names(Results) == "Row.names"] <- "gene_id"
 Results <- Results[!duplicated(Results$gene_name),]
 Results <- Results %>% remove_rownames %>% column_to_rownames(var="gene_name")
-
 Results <- Results[order(Results$pvalue),]
-#write.xlsx(Results[order(Results$pvalue), ][1:10,],"C://Users/Gerard/Desktop/AAA/RNAseq/TopTable.xlsx", rowNames = TRUE)
 
-nrow(Results[Results$fdr < 0.05,])
+nrow(Results[Results$fdr < 0.05,]) # 5,792
 
-sig.genes <- rownames(Results[Results$fdr < 0.05,])
-sig.genes <- ann[ann$gene_name %in% sig.genes,]$gene_id
-
-#write.table(sig.genes, "C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Significant_genes.txt", quote = F, row.names = F, col.names = F)
-
-#write.table(sig.genes, "C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Significant_genes_smoking.txt", quote = F, row.names = F, col.names = F)
-
+#fwrite(Results[Results$fdr < 0.05,], "C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Cases_Controls.txt", sep = "\t", row.names = T)
 ```
+
+### Compare with previous results (Tunica-Specific):
+
+
+```{r}
+# Load our results:
+cc <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Cases_Controls.txt")
+```
+
+```{r}
+med <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/TunicaSpecificResults.xlsx", sheet = 1)
+med$Gene.Symbol <- gsub("-", "", med$Gene.Symbol)
+
+#length(med$Gene.Symbol) # 5,889
+#length(unique(med$Gene.Symbol)) # 5,507
+
+#length(intersect(med$Gene.Symbol, cc$V1)) # 2,952
+
+#length(setdiff(med$Gene.Symbol, cc$V1)) # 2,555
+#length(setdiff(cc$V1, med$Gene.Symbol)) # 2,840
+```
+
+```{r}
+adv <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/TunicaSpecificResults.xlsx", sheet = 2)
+adv$Gene.Symbol <- gsub("-", "", adv$Gene.Symbol)
+
+#length(adv$Gene.Symbol) # 2,701
+#length(unique(adv$Gene.Symbol)) #2,508
+
+#length(intersect(adv$Gene.Symbol, cc$V1)) # 1,007
+
+#length(setdiff(adv$Gene.Symbol, cc$V1)) # 1,501
+#length(setdiff(cc$V1, adv$Gene.Symbol)) # 4,785
+```
+
+
+
+
+### DEG:
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+library(clusterProfiler);library(org.Hs.eg.db);library(enrichplot);library(ggplot2)
+```
+
+```{r}
+gene_list <- substr(Results[Results$fdr < 0.05,]$gene_id, 1, 15)
+
+entrez_ids <- bitr(gene_list, fromType = "ENSEMBL", toType = "ENTREZID", OrgDb = org.Hs.eg.db)
+
+# GO enrichment analysis:
+go_enrich <- enrichGO(gene          = entrez_ids$ENTREZID,
+                      OrgDb         = org.Hs.eg.db,
+                      keyType       = "ENTREZID",
+                      ont           = "ALL", # Choose from "BP" (Biological Process), "CC" (Cellular Component), or "MF" (Molecular Function)
+                      pAdjustMethod = "BH",
+                      pvalueCutoff  = 0.05,
+                      qvalueCutoff  = 0.2)
+```
+
+```{r}
+# GO enrichment dot plot:
+png("C://Users/Gerard/Desktop/GO_Enrichment.png", width = 4*800, height = 4*600, res = 300)
+dotplot(go_enrich, showCategory = 20) + ggtitle("GO Enrichment")
+dev.off()
+```
+
+```{r}
+gene_list <- rownames(Results[Results$fdr < 0.05,])
+
+# KEGG enrichment analysis
+kegg_enrich <- enrichKEGG(gene         = entrez_ids$ENTREZID,
+                          organism     = "hsa",
+                          keyType      = "kegg",
+                          pAdjustMethod = "BH",
+                          pvalueCutoff = 0.05,
+                          qvalueCutoff = 0.2)
+```
+
+```{r}
+# KEGG enrichment dot plot
+png("C://Users/Gerard/Desktop/KEGG_Enrichment.png", width = 4*800, height = 4*600, res = 300)
+dotplot(kegg_enrich, showCategory = 15) + ggtitle("KEGG Enrichment")
+dev.off()
+```
+
+
+### Volcano Plot:
+
+```{r}
+significant_genes <- Results %>% filter(qvalue < 0.0005)
+
+ggplot(data = Results, aes(x = Beta, y = -log(pvalue))) +
+  geom_point(aes(color = qvalue < 0.05), size = 0.5) +
+  scale_color_manual(values = c("gray", "red")) +
+  geom_hline(yintercept = -log10(0.05)) +
+  geom_vline(xintercept = 1) +
+  geom_vline(xintercept = -1) +
+#  xlim(-20,20) +
+  theme_minimal() +
+  geom_text(data = significant_genes,
+            aes(label = rownames(significant_genes), hjust = 0, vjust = -0.5),
+            size = 3, check_overlap = TRUE)
+
+ggsave("C://Users/Gerard/Desktop/Volcano.png")
+```
+
 
 ### Plot residuals:
 
@@ -188,7 +317,9 @@ mean(controls.tpm["PCSK9",])
 ```
 
 ```{r}
-res <- resid(lm(counts["PCSK9",] ~ tec$FC + tec$Lane + tec$Library + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit))
+res1 <- resid(lm(counts["PCSK9",] ~ tec$FC + tec$Lane + tec$Library + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit))
+
+res2 <- lm(counts["PCSK9",] ~ tec$FC + tec$Lane + tec$Library + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit)$residuals
 
 res <-  data.frame(Expression = res)
 
@@ -211,7 +342,7 @@ p + scale_fill_manual(values=c("deepskyblue1", "tomato1"))
 ```
 
 
-##### Diameter:
+#### Diameter:
 
 ```{r}
 counts <- merge(counts.tpm, ann[,c("gene_id","gene_name")], by.x = 0, by.y = "gene_id")
@@ -257,8 +388,6 @@ ggplot(res, aes(x = aortc_diameter_mm, y = Expression)) + geom_point(color = "or
 
 #ggsave("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/PCSK9_Diameter.png")
 ```
-
-
 
 
 #### EGFR:
