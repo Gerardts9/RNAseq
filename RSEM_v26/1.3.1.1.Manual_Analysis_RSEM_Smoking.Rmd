@@ -1,0 +1,242 @@
+---
+title: "1.3.1.Manual_Analysis_RSEM_Smoking"
+author: "Gerard Temprano Sagrera"
+date: "2023-04-27"
+output: html_document
+---
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+library(data.table);library(edgeR);library(tidyverse);library(openxlsx);library(preprocessCore);library("org.Hs.eg.db");library(stats);library(qvalue);library(ggpubr)
+```
+
+### Load Annotation file to change format names:
+
+```{r}
+ann <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Annotation/gencode.v26.annotation.fixed.gtf.gz")
+```
+
+### Convert TPM counts to DGElist object:
+
+```{r}
+counts.tpm <- read.table("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.RSEM.All.txt")
+```
+
+### Load technical data and subset to cases:
+
+```{r}
+tec <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/Technical_Complete.xlsx")
+tec <- tec[tec$Seq_ID %in% colnames(counts.tpm),]
+```
+
+### Load biological data and subset to cases:
+
+```{r}
+bio <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/20221115_Datos Pacientes.xlsx")
+bio <- bio[bio$Muestra %in% colnames(counts.tpm),]
+
+# Smoking:
+bio$Smoking2 <- ifelse(bio$Smoking == 0, 0, 1)
+```
+
+### Convert TPM counts to DGElist object:
+
+```{r}
+dge <- DGEList(counts = counts.tpm)
+
+# Set "Control" to be the first level:
+AAA <- factor(x = c(rep("Case", 96), rep("Control", 44)),
+              levels = c("Control", "Case"))
+
+# Batch and FC are not included because are highly correlated with AAA:
+design <-
+  model.matrix(~ AAA + tec$FC + tec$Lane + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$SEXO + bio$age + bio$Smoking)
+
+colnames(design) <-
+  c("(Intercept)",
+    "AAA",
+    "FC1",
+    "FC2",
+    "Lane1",
+    "Lane2",
+    "GC_Mean",
+    "RIN",
+    "DV200",
+    "Qubit",
+    "Sex",
+    "Age",
+    "Smoking1",
+    "Smoking2")
+```
+
+### Remove lowely expressed genes using LIMMA:
+
+```{r}
+keep <- filterByExpr(dge, design)
+
+paste0("We keep ", sum(keep), " genes") # 11,196
+paste0("We remove ", sum(!keep), " genes") # 16,094
+
+dge <- dge[keep,,keep.lib.sizes=FALSE]
+```
+
+### Apply quantile normalization to counts:
+
+```{r}
+counts.tpm <- as.data.frame(normalize.quantiles(as.matrix(dge$counts), keep.names = T))
+```
+
+### Manual Differential Expression:
+
+```{r}
+Pvalue_Past <-
+  apply(counts.tpm, 1, function(x)
+    summary(
+      lm(
+        x ~ bio$Smoking + tec$FC + tec$Lane + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age + bio$SEXO
+      )
+    )[4][[1]][2,4])
+
+
+Pvalue_Current <-
+  apply(counts.tpm, 1, function(x)
+    summary(
+      lm(
+        x ~ bio$Smoking + tec$FC + tec$Lane + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age + bio$SEXO
+      )
+    )[4][[1]][3,4])
+
+Pvalue_Smoking <-
+  apply(counts.tpm, 1, function(x)
+    summary(
+      lm(
+        x ~ bio$Smoking2 + tec$FC + tec$Lane + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age + bio$SEXO
+        )
+    )[4][[1]][2,4])
+
+
+Coef_Past <-
+  apply(counts.tpm, 1, function(x)
+    summary(
+      lm(
+        x ~ bio$Smoking + tec$FC + tec$Lane + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age + bio$SEXO + bio$Smoking
+      )
+    )[4][[1]][2, 1])
+
+Coef_Current <-
+  apply(counts.tpm, 1, function(x)
+    summary(
+      lm(
+        x ~ bio$Smoking + tec$FC + tec$Lane + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age + bio$SEXO + bio$Smoking
+      )
+    )[4][[1]][3, 1])
+
+Coef_Smoking <-
+  apply(counts.tpm, 1, function(x)
+    summary(
+      lm(
+        x ~ bio$Smoking + tec$FC + tec$Lane + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age + bio$SEXO + bio$Smoking2
+      )
+    )[4][[1]][2, 1])
+```
+
+
+### Plot P-values:
+
+```{r}
+#png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Hist_Cases_vs_Controls_Smoking.png", height = 10000, width = 10000, res = 1200)
+#hist(Pvalue, main = "", cex.main = 2)
+#dev.off()
+
+hist(Pvalue_Past, main = "Past Smokers", cex.main = 2)
+hist(Pvalue_Current, main = "Current Smokers", cex.main = 2)
+hist(Pvalue_Smoking, main = "Ever Smokers vs Never Smokers", cex.main = 2)
+```
+
+### Create qvalue object:
+
+```{r}
+qobj_Past <- qvalue(p = Pvalue_Past)
+qobj_Current <- qvalue(p = Pvalue_Current)
+qobj_Smoking <- qvalue(p = Pvalue_Smoking)
+```
+
+
+### Results Ever Smokers vs Never Smokers:
+
+```{r}
+Results_Smoking <- data.frame(
+  pvalue = Pvalue_Smoking,
+  qvalue = qobj_Smoking$qvalues,
+  fdr = p.adjust(Pvalue_Smoking, method = "fdr"),
+  pi1 = 1-qobj_Smoking$pi0,
+  Beta = Coef_Smoking
+)
+
+Results_Smoking <- merge(Results_Smoking, ann[,c("gene_id","gene_name")], by.x = 0, by.y = "gene_id")
+Results_Smoking <- Results_Smoking[,-1]
+Results_Smoking <- Results_Smoking[!duplicated(Results_Smoking$gene_name),]
+Results_Smoking <- Results_Smoking %>% remove_rownames %>% column_to_rownames(var="gene_name")
+Results_Smoking <- Results_Smoking[order(Results_Smoking$pvalue),]
+
+nrow(Results_Smoking[Results_Smoking$fdr < 0.05,]) # 201.
+
+#fwrite(Results_Smoking[Results_Smoking$fdr < 0.05,], "C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Smoking.txt", sep = "\t", row.names = T)
+```
+
+
+### Results Old Smokers (1) vs Never Smokers (0):
+
+```{r}
+Results_Past <- data.frame(
+  pvalue = Pvalue_Past,
+  qvalue = qobj_Past$qvalues,
+  fdr = p.adjust(Pvalue_Past, method = "fdr"),
+  pi1 = 1-qobj_Past$pi0,
+  Beta = Coef_Past
+)
+
+Results_Past <- merge(Results_Past, ann[,c("gene_id","gene_name")], by.x = 0, by.y = "gene_id")
+Results_Past <- Results_Past[,-1]
+Results_Past <- Results_Past[!duplicated(Results_Past$gene_name),]
+Results_Past <- Results_Past %>% remove_rownames %>% column_to_rownames(var="gene_name")
+Results_Past <- Results_Past[order(Results_Past$pvalue),]
+
+nrow(Results_Past[Results_Past$fdr < 0.05,]) # 1.
+
+#fwrite(Results_Past[Results_Past$fdr < 0.05,], "C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Smoking_Past.txt", sep = "\t", row.names = T)
+```
+
+
+### Results Current Smokers (2) vs Never Smokers (0):
+
+```{r}
+Results_Current <- data.frame(
+  pvalue = Pvalue_Current,
+  qvalue = qobj_Current$qvalues,
+  fdr = p.adjust(Pvalue_Current, method = "fdr"),
+  pi1 = 1-qobj_Current$pi0,
+  Beta = Coef_Current
+)
+
+Results_Current <- merge(Results_Current, ann[,c("gene_id","gene_name")], by.x = 0, by.y = "gene_id")
+Results_Current <- Results_Current[,-1]
+Results_Current <- Results_Current[!duplicated(Results_Current$gene_name),]
+Results_Current <- Results_Current %>% remove_rownames %>% column_to_rownames(var="gene_name")
+Results_Current <- Results_Current[order(Results_Current$pvalue),]
+
+nrow(Results_Current[Results_Current$fdr < 0.05,]) # 0.
+
+#fwrite(Results_Current[Results_Current$fdr < 0.05,], "C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Smoking_Current.txt", sep = "\t", row.names = T)
+```
+
+
+
+
+
+
+
+
+
+
+
+
