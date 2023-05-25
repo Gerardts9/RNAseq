@@ -14,6 +14,10 @@ bio <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/20221115_Datos Pacientes.x
 bio <- bio[2:nrow(bio),]
 bio <- bio %>% remove_rownames %>% column_to_rownames(var="Muestra")
 table(bio$Status)
+
+bio <- bio[!rownames(bio) %in% "HSP075",]
+table(bio$TIPOANEURISMA)
+table(bio$symptomatic)
 ```
 
 ```{r}
