@@ -198,7 +198,7 @@ ggplot(res, aes(x = aortc_diameter_mm, y = Expression)) + geom_point(color = "or
     axis.line = element_line(colour = "black")
   )
 
-ggsave("C://Users/Gerard/Desktop/AAA/RNAseq/GitHub/ARID5A.png", width = 7.5, height = 7.5)
+#ggsave("C://Users/Gerard/Desktop/AAA/RNAseq/GitHub/ARID5A.png", width = 7.5, height = 7.5)
 ```
 
 #### LMNA:
@@ -241,7 +241,7 @@ ggplot(res, aes(x = aortc_diameter_mm, y = Expression)) + geom_point(color = "or
     axis.line = element_line(colour = "black")
   )
 
-ggsave("C://Users/Gerard/Desktop/AAA/RNAseq/GitHub/LMNA.png", width = 7.5, height = 7.5)
+#ggsave("C://Users/Gerard/Desktop/AAA/RNAseq/GitHub/LMNA.png", width = 7.5, height = 7.5)
 ```
 
 ## By Type of Aneurysm (1 Atherosclerotic 2 Inflammatory):
