@@ -134,6 +134,7 @@ Pvalue <-
         x ~ tec$Case + tec$FC + tec$Lane + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age + bio$SEXO
       )
     )[4][[1]][2, 4])
+
 Coef <-
   apply(counts.tpm, 1, function(x)
     summary(
@@ -182,6 +183,8 @@ Results <- Results %>% remove_rownames %>% column_to_rownames(var="gene_name")
 Results <- Results[order(Results$pvalue),]
 
 nrow(Results[Results$fdr < 0.05,]) # 5,792
+
+Results[rownames(Results) %in% "LAMA2",]
 
 #fwrite(Results[Results$fdr < 0.05,], "C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Cases_Controls.txt", sep = "\t", row.names = T)
 ```
