@@ -1,4 +1,4 @@
-library(VennDiagram)
+library(VennDiagram);library(clusterProfiler);library(org.Hs.eg.db);library(enrichplot);library(readxl);library(data.table);library(openxlsx)
 
 ann <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Annotation/gencode.v26.annotation.fixed.gtf.gz")
 ann$gene_id <- substr(ann$gene_id, 1, 15)
@@ -11,6 +11,11 @@ cc <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Cases_Controls.txt")
 dia <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Diameter.txt")
 sym <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Symptoms.txt")
 
+length(unique(c(dia$V1, sym$V1)))
+
+intersect(c(dia$V1,sym$V1), cc$V1)
+
+
 alt <- read.table("C://Users/Gerard/Desktop/AAA/RNAseq/SUPPA/AAA_Sig_Results.txt")
 alt$gene_id <- substr(rownames(alt), 1, 15)
 alt <- merge(alt, ann, by = "gene_id")
@@ -22,7 +27,6 @@ med$Gene.Symbol <- gsub("-", "", med$Gene.Symbol)
 adv <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/TunicaSpecificResults.xlsx", sheet = 2)
 adv$Gene.Symbol <- gsub("-", "", adv$Gene.Symbol)
 #################################################
-
 
 # CaseControl vs Previous Results (Media and Adventitia):
 
@@ -156,7 +160,7 @@ grid.draw(v)
 ########################################
 
 
-# CaseControl vs Diameter vs Symptoms:
+# Splicing vs CaseControl:
 ########################################
 v <- venn.diagram(
   x = list(A = alt$gene_name, B = cc$V1),
