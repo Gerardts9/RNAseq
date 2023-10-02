@@ -41,8 +41,9 @@ sum(!is.na(bio2$STATUS))
 sum(!is.na(bio2$AGE))
 
 ggboxplot(bio2, x = "STATUS", y = "AGE") +
-  geom_boxplot() +
-  stat_compare_means(method = "t.test", label.y = 100, label.x = 1.5)
+  geom_boxplot(aes(fill = factor(STATUS)), outlier.shape = " ") +
+  stat_compare_means(method = "t.test", label.y = 100, label.x = 1.5) +
+  theme(legend.position = "none")
 ```
 
 
