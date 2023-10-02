@@ -7,19 +7,18 @@ head(ann)
 
 # Load Results:
 #################################################
-cc <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Cases_Controls.txt")
-dia <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Diameter.txt")
-sym <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Symptoms.txt")
+cc <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Cases_Controls_No_Smoking.xlsx")
+dia <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Diameter.xlsx")
+sym <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Symptoms.xlsx")
 
-length(unique(c(dia$V1, sym$V1)))
+length(unique(c(dia$Gene.Name, sym$Gene.Name)))
 
-intersect(c(dia$V1,sym$V1), cc$V1)
+intersect(c(dia$Gene.Name,sym$Gene.Name), cc$Gene.Name)
 
 
 alt <- read.table("C://Users/Gerard/Desktop/AAA/RNAseq/SUPPA/AAA_Sig_Results.txt")
 alt$gene_id <- substr(rownames(alt), 1, 15)
 alt <- merge(alt, ann, by = "gene_id")
-
 
 med <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/TunicaSpecificResults.xlsx", sheet = 1)
 med$Gene.Symbol <- gsub("-", "", med$Gene.Symbol)
@@ -31,7 +30,7 @@ adv$Gene.Symbol <- gsub("-", "", adv$Gene.Symbol)
 # CaseControl vs Previous Results (Media and Adventitia):
 
 venn.plot <- venn.diagram(
-  x = list(A = cc$V1, B = med$Gene.Symbol, C = adv$Gene.Symbol),
+  x = list(A = cc$Gene.Name, B = med$Gene.Symbol, C = adv$Gene.Symbol),
   filename = "C://Users/Gerard/Desktop/AAA/RNAseq/Venn/CasesControls_Media_Adventitia.png",
   category.names = c("New","Media","Adventitia"),
   fill = c("red", "green", "blue"),
@@ -41,7 +40,7 @@ venn.plot <- venn.diagram(
 # CaseControl vs Media
 
 venn.plot <- venn.diagram(
-  x = list(A = cc$V1, B = med$Gene.Symbol),
+  x = list(A = cc$Gene.Name, B = med$Gene.Symbol),
   filename = "C://Users/Gerard/Desktop/AAA/RNAseq/Venn/CasesControls_Media.png",
   category.names = c("New","Media"),
   fill = c("red", "green"),
@@ -50,7 +49,7 @@ venn.plot <- venn.diagram(
 # CaseControl vs Adventitia:
 
 venn.plot <- venn.diagram(
-  x = list(A = cc$V1, B = adv$Gene.Symbol),
+  x = list(A = cc$Gene.Name, B = adv$Gene.Symbol),
   filename = "C://Users/Gerard/Desktop/AAA/RNAseq/Venn/CasesControls_Adventitia.png",
   category.names = c("New","Adventitia"),
   fill = c("red", "blue"),
@@ -58,11 +57,11 @@ venn.plot <- venn.diagram(
 
 
 
-# CasesControls vs Diameter:
+# Status vs Diameter:
 ########################################
 v <- venn.diagram(
-  x = list(A = dia$V1, B = cc$V1),
-  category.names = c("Diameter", "CaseControl"),
+  x = list(A = dia$Gene.Name, B = cc$Gene.Name),
+  category.names = c("Diameter", "Status"),
   fill = c("yellow", "red"),
   alpha = 0.5,
   filename = NULL,
@@ -73,18 +72,18 @@ v <- venn.diagram(
 lapply(v, function(i) i$label)
 
 # Intersection:
-v[[7]]$label <- paste(intersect(cc$V1, dia$V1), collapse="\n")  
+v[[7]]$label <- paste(intersect(cc$Gene.Name, dia$Gene.Name), collapse="\n")  
 
 # Plot:
 grid.newpage()
 grid.draw(v)
 ########################################
 
-# CasesControls vs Symptoms:
+# Status vs Symptoms:
 ########################################
 v <- venn.diagram(
-  x = list(A = sym$V1, B = cc$V1),
-  category.names = c("Symptoms", "CaseControl"),
+  x = list(A = sym$Gene.Name, B = cc$Gene.Name),
+  category.names = c("Symptoms", "Status"),
   fill = c("green", "red"),
   alpha = 0.5,
   filename = NULL,
@@ -95,7 +94,7 @@ v <- venn.diagram(
 lapply(v, function(i) i$label)
 
 # Intersection:
-v[[7]]$label <- paste(intersect(cc$V1, sym$V1), collapse="\n")  
+v[[7]]$label <- paste(intersect(cc$Gene.Name, sym$Gene.Name), collapse="\n")  
 
 # Plot:
 grid.newpage()
@@ -106,7 +105,7 @@ grid.draw(v)
 # Previous Results vs Diameter:
 ########################################
 v <- venn.diagram(
-  x = list(A = dia$V1, B = med$Gene.Symbol, C = adv$Gene.Symbol),
+  x = list(A = dia$Gene.Name, B = med$Gene.Symbol, C = adv$Gene.Symbol),
   category.names = c("Diameter", "Media", "Adventitia"),
   fill = c("yellow", "green", "blue"),
   alpha = 0.5,
@@ -117,7 +116,7 @@ v <- venn.diagram(
 grid.draw(v)
 
 venn.plot <- venn.diagram(
-  x = list(A = dia$V1, B = med$Gene.Symbol, C = adv$Gene.Symbol),
+  x = list(A = dia$Gene.Name, B = med$Gene.Symbol, C = adv$Gene.Symbol),
   filename = NULL,
   category.names = c("New","Media", "Adventitia"),
   fill = c("yellow", "green", "blue"),
@@ -127,7 +126,7 @@ venn.plot <- venn.diagram(
 lapply(v, function(i) i$label)
 
 # Intesection:
-v[[7]]$label <- paste(intersect(cc$V1, dia$V1), collapse="\n")  
+v[[7]]$label <- paste(intersect(cc$Gene.Name, dia$Gene.Name), collapse="\n")  
 
 # Plot  
 grid.newpage()
@@ -135,11 +134,11 @@ grid.draw(v)
 ########################################
 
 
-# CaseControl vs Diameter vs Symptoms:
+# Status vs Diameter vs Symptoms:
 ########################################
 v <- venn.diagram(
-  x = list(A = cc$V1, B = dia$V1, C = sym$V1),
-  category.names = c("CaseControl", "Diameter", "Symptoms"),
+  x = list(A = cc$Gene.Name, B = dia$Gene.Name, C = sym$Gene.Name),
+  category.names = c("Status", "Diameter", "Symptoms"),
   fill = c("red", "yellow","green"),
   alpha = 0.5,
   filename = NULL,
@@ -149,10 +148,10 @@ v <- venn.diagram(
 
 lapply(v, function(i) i$label)
 
-v[[10]]$label <- paste(intersect(intersect(cc$V1, dia$V1), sym$V1), collapse="\n")  
-v[[9]]$label <- paste(intersect(cc$V1, dia$V1)[!intersect(cc$V1, dia$V1) == "LAMA2"], 
+v[[10]]$label <- paste(intersect(intersect(cc$Gene.Name, dia$Gene.Name), sym$Gene.Name), collapse="\n")  
+v[[9]]$label <- paste(intersect(cc$Gene.Name, dia$Gene.Name)[!intersect(cc$Gene.Name, dia$Gene.Name) == "LAMA2"], 
                       collapse="\n")
-v[[11]]$label <- paste(intersect(cc$V1, sym$V1)[!intersect(cc$V1, sym$V1) == "LAMA2"],
+v[[11]]$label <- paste(intersect(cc$Gene.Name, sym$Gene.Name)[!intersect(cc$Gene.Name, sym$Gene.Name) == "LAMA2"],
                       collapse="\n")
 
 grid.newpage()
@@ -160,21 +159,23 @@ grid.draw(v)
 ########################################
 
 
-# Splicing vs CaseControl:
+# Splicing vs Status:
 ########################################
 v <- venn.diagram(
-  x = list(A = alt$gene_name, B = cc$V1),
-  category.names = c("Splicing", "CaseControl"),
+  x = list(A = alt$gene_name, B = cc$Gene.Name),
+  category.names = c("Splicing", "Status"),
   fill = c("blue", "red"),
   alpha = 0.5,
-  filename = "C://Users/Gerard/Desktop/AAA/RNAseq/Venn/CaseControl_Splicing.png",
-  cat.pos = c(-30, 1)
+  filename = NULL,
+  cat.pos = c(-1, 1), scaled = F
 )
-
 
 lapply(v, function(i) i$label)
 
-v[[10]]$label <- paste(intersect(intersect(cc$V1, dia$V1), sym$V1), collapse="\n")  
+setdiff(alt$gene_name, cc$Gene.Name)
+
+v[[6]]$label <- paste(setdiff(alt$gene_name, cc$Gene.Name), collapse="\n")  
+v[[7]]$label <- paste(intersect(alt$gene_name, cc$Gene.Name), collapse="\n")  
 
 grid.newpage()
 grid.draw(v)
