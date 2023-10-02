@@ -7,6 +7,7 @@ ann$gene_id <- substr(ann$gene_id, 1, 15)
 # Load Counts:
 ########################################
 counts.all <- read.table("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.RSEM.All.txt")
+rownames(counts.all) <- substr(rownames(counts.all), 1, 15)
 counts.all <- merge(counts.all, ann[,c("gene_id","gene_name")], by.x = 0, by.y = "gene_id")
 counts.all <- counts.all[,-1]
 counts.all <- counts.all[!duplicated(counts.all$gene_name),]
@@ -14,6 +15,7 @@ counts.all <- counts.all %>% remove_rownames %>% column_to_rownames(var="gene_na
 counts.all <- as.matrix(normalize.quantiles(as.matrix(counts.all), keep.names = T))
 
 counts.cases <- read.table("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.RSEM.Cases.txt")
+rownames(counts.cases) <- substr(rownames(counts.cases), 1, 15)
 counts.cases <- merge(counts.cases, ann[,c("gene_id","gene_name")], by.x = 0, by.y = "gene_id")
 counts.cases <- counts.cases[,-1]
 counts.cases <- counts.cases[!duplicated(counts.cases$gene_name),]
@@ -38,14 +40,14 @@ bio1 <- bio1[bio1$Muestra %in% colnames(counts.cases),]
 
 # Load results:
 ########################################
-cc <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Cases_Controls.txt")
-dia <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Diameter.txt")
-sym <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Symptoms.txt")
+cc <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Cases_Controls_No_Smoking.xlsx")
+dia <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Diameter.xlsx")
+sym <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Symptoms.xlsx")
 
 alt <- read.table("C://Users/Gerard/Desktop/AAA/RNAseq/SUPPA/AAA_Sig_Results.txt")
 alt$event <- rownames(alt)
 alt$gene_id2 <- substr(rownames(alt), 1, 15)
-alt <- merge(alt, ann, by = "gene_id2")
+alt <- merge(alt, ann, by.x = "gene_id2", by.y = "gene_id")
 
 med <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/TunicaSpecificResults.xlsx", sheet = 1)
 med$Gene.Symbol <- gsub("-", "", med$Gene.Symbol)
@@ -55,24 +57,24 @@ adv$Gene.Symbol <- gsub("-", "", adv$Gene.Symbol)
 ########################################
 
 
-intersect(cc$V1, intersect(dia$V1, sym$V1)) # LAMA2
+intersect(cc$Gene.Name, intersect(dia$Gene.Name, sym$Gene.Name)) # LAMA2
 
-intersect(cc$V1, intersect(dia$V1, intersect(sym$V1, alt$gene_name)))
+intersect(cc$Gene.Name, intersect(dia$Gene.Name, intersect(sym$Gene.Name, alt$gene_name)))
 
-intersect(cc$V1, alt$gene_name)
+intersect(cc$Gene.Name, alt$gene_name)
 
 
 # LAMA2:
-which(cc$V1 == "LAMA2") # 3507
-which(dia$V1 == "LAMA2") # 29
-which(sym$V1 == "LAMA2") # 1
+which(cc$Gene.Name == "LAMA2") # 3507
+which(dia$Gene.Name == "LAMA2") # 29
+which(sym$Gene.Name == "LAMA2") # 1
 
 lama <- ann[ann$gene_name == "LAMA2",]$gene_id
 
 
 # By Case-Control:
 ########################################
-cc[cc$V1 == "LAMA2",]
+cc[cc$Gene.Name == "LAMA2",]
 
 mean(counts.all["LAMA2", 1:96])
 mean(counts.all["LAMA2", 97:140])
