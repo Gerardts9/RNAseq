@@ -87,15 +87,14 @@ colnames(design) <-
     "Age")
 ```
 
-### Remove lowely expressed genes using EdgeR:
+### Remove lowely expressed genes using manual filtering:
 
 ```{r}
-keep <- filterByExpr(dge, design)
-
-paste0("We keep ", sum(keep), " genes") # 11,196
-paste0("We remove ", sum(!keep), " genes") # 16,094
-
+keep <- apply(dge$counts, 1, function(x) sum(x > 0.5) >= 70)
 dge <- dge[keep,,keep.lib.sizes=FALSE]
+
+paste0("We keep ", sum(keep), " genes") # 14,675
+paste0("We remove ", sum(!keep), " genes") # 12,615 
 ```
 
 ### Apply quantile normalization to counts:
@@ -148,9 +147,9 @@ Coef <-
 ### Plot P-values:
 
 ```{r}
-#png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Hist_Cases_vs_Controls.png", height = 10000, width = 10000, res #= 1200)
-#hist(Pvalue, main = "", cex.main = 2)
-#dev.off()
+png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Results/Hist_Cases_vs_Controls.png", height = 10000, width = 10000, res = 1200)
+hist(Pvalue, main = "Cases vs Controls", cex.main = 2)
+dev.off()
 
 hist(Pvalue, main = "Cases vs Controls", cex.main = 2)
 ```
@@ -182,19 +181,25 @@ Results <- Results[!duplicated(Results$gene_name),]
 Results <- Results %>% remove_rownames %>% column_to_rownames(var="gene_name")
 Results <- Results[order(Results$pvalue),]
 
-nrow(Results[Results$fdr < 0.05,]) # 5,792
+nrow(Results[Results$fdr < 0.05,]) # 7,454
 
-Results[rownames(Results) %in% "LAMA2",]
+head(Results)
 
-#fwrite(Results[Results$fdr < 0.05,], "C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Cases_Controls.txt", sep = "\t", row.names = T)
+glist <- c("PDP1","PDP2","PDHA1","PDK1","PDK2","PDK3","PDK4","ACO1","ACO2","IDH1","IDH2","IDH3A","IDH3B","OGDH","SUCLA2",
+           "SDHA","SDHB","SDHC","SDHD","GLS","GLUL","GLUD1","GAD1","GAD2","ABAT","ALDH5A1")
+           
+#write.xlsx(Results[rownames(Results) %in% glist,], "C://Users/Gerard/Desktop/AAA/RNAseq/Genes.xlsx", rowNames = T)
+
+#write.table(rownames(head(Results, 50)), "C://Users/Gerard/Desktop/Top50Genes.txt", quote = F, rowNames = F, col.names = F)
+
+#write.xlsx(Results[Results$fdr < 0.05,], "C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Cases_Controls_No_Smoking.xlsx", sep = "\t", rowNames = T)
 ```
 
 ### Compare with previous results (Tunica-Specific):
 
-
 ```{r}
 # Load our results:
-cc <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Cases_Controls.txt")
+cc <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Cases_Controls_No_Smoking.xlsx")
 ```
 
 ```{r}
@@ -223,7 +228,50 @@ adv$Gene.Symbol <- gsub("-", "", adv$Gene.Symbol)
 #length(setdiff(cc$V1, adv$Gene.Symbol)) # 4,785
 ```
 
+```{r}
+med <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/TunicaSpecificResults.xlsx", sheet = 1)
+med$Gene.Symbol <- gsub("-", "", med$Gene.Symbol)
 
+adv <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/TunicaSpecificResults.xlsx", sheet = 2)
+adv$Gene.Symbol <- gsub("-", "", adv$Gene.Symbol)
+
+updown <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/UpDown Results.xlsx")
+
+smla <- readxl::read_xls("C://Users/Gerard/Desktop/AAA/RNAseq/SmallLargeResults.xls")
+
+rup <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Ruptured.xlsx")
+
+affyilu <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Affyilu_Results.xlsx")
+
+
+genes <- fread("C://Users/Gerard/Desktop/Top50Genes.txt", header = F)
+
+
+# Unifying gene lists
+df_list <- list(adv = list(df = adv, code = "32907367"),
+                med = list(df = med, code = "32907367"),
+                updown = list(df = updown, code = "19111481"),
+                smla = list(df = smla, code = "25944698"),
+                rup = list(df = rup, code = "29191809"),
+                affyilu = list(df = affyilu, code = "17634102"))
+
+# Create new dataframe:
+gene_presence <- data.frame(Gene.Name = genes$V1, Symbol_Code = as.character(rep("", length(genes$V1))))
+
+# Check gene presence:
+for (df_name in names(df_list)) {
+  df_info <- df_list[[df_name]]
+  in_gene_index <- gene_presence$Gene.Name %in% df_info$df$Gene.Symbol
+  gene_presence[in_gene_index, "Symbol_Code"] <- ifelse(gene_presence[in_gene_index, "Symbol_Code"] == "", 
+                                                        df_info$code,
+                                                        paste(gene_presence[in_gene_index, "Symbol_Code"], df_info$code, sep = ","))
+}
+
+names(gene_presence) <- c("Gene Name","Previously Described")
+gene_presence$'Functional Studies' <- NA
+
+#write.xlsx(gene_presence, "C://Users/Gerard/Desktop/AAA/RNAseq/Top50Genes.xlsx")
+```
 
 
 ### DEG:
@@ -249,9 +297,9 @@ go_enrich <- enrichGO(gene          = entrez_ids$ENTREZID,
 
 ```{r}
 # GO enrichment dot plot:
-png("C://Users/Gerard/Desktop/GO_Enrichment.png", width = 4*800, height = 4*600, res = 300)
+#png("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Enrichment/GO_Cases_vs_Controls_No_Smoking.png", width = 4*800, height = 4*600, res = 300)
 dotplot(go_enrich, showCategory = 20) + ggtitle("GO Enrichment")
-dev.off()
+#dev.off()
 ```
 
 ```{r}
@@ -268,10 +316,31 @@ kegg_enrich <- enrichKEGG(gene         = entrez_ids$ENTREZID,
 
 ```{r}
 # KEGG enrichment dot plot
-png("C://Users/Gerard/Desktop/KEGG_Enrichment.png", width = 4*800, height = 4*600, res = 300)
+#png("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Enrichment/KEGG_Cases_vs_Controls_No_Smoking.png", width = 4*800, height = 4*600, res = 300)
 dotplot(kegg_enrich, showCategory = 15) + ggtitle("KEGG Enrichment")
-dev.off()
+#dev.off()
 ```
+
+
+# STRING and Cytoscape integration:
+
+```{r}
+library(RCy3)
+cytoscapePing()
+cytoscapeVersionInfo()
+
+installApp('stringApp')
+
+de.genes <- read.table("https://raw.githubusercontent.com/cytoscape/cytoscape-tutorials/gh-pages/protocols/data/TCGA-Ovarian-MesenvsImmuno_data.csv", header = TRUE, sep = ",", quote="\"", stringsAsFactors = FALSE)
+
+de.genes.up <- de.genes[which(de.genes$logFC >= 1.8 & de.genes$FDR.adjusted.Pvalue <= 0.05),]
+
+string.cmd = paste('string protein query query="', paste(de.genes.up$Gene, collapse = '\n'), '" cutoff=0.4 limit=0 species="Homo sapiens"', sep = "")
+
+#commandsRun(string.cmd)
+```
+
+
 
 
 ### Volcano Plot:
@@ -279,7 +348,7 @@ dev.off()
 ```{r}
 significant_genes <- Results %>% filter(qvalue < 0.0005)
 
-ggplot(data = Results, aes(x = Beta, y = -log(pvalue))) +
+g<- ggplot(data = Results, aes(x = Beta, y = -log(pvalue))) +
   geom_point(aes(color = qvalue < 0.05), size = 0.5) +
   scale_color_manual(values = c("gray", "red")) +
   geom_hline(yintercept = -log10(0.05)) +
@@ -291,18 +360,19 @@ ggplot(data = Results, aes(x = Beta, y = -log(pvalue))) +
             aes(label = rownames(significant_genes), hjust = 0, vjust = -0.5),
             size = 3, check_overlap = TRUE)
 
-ggsave("C://Users/Gerard/Desktop/Volcano.png")
+png("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Results/Volcano_Cases_vs_Controls_No_Smoking", width = 4*800, height = 4*600, res = 300)
+g
+dev.off()
 ```
 
 
 ### Plot residuals:
 
-#### PCSK9:
+#### ERBB2:
 
-##### Case:
+##### By Case:
+
 ```{r}
-counts.tpm <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.RSEM.txt")
-counts.tpm <- counts.tpm %>% remove_rownames %>% column_to_rownames(var="V1")
 counts <- merge(counts.tpm, ann[,c("gene_id","gene_name")], by.x = 0, by.y = "gene_id")
 counts <- counts[,-1]
 counts <- counts[!duplicated(counts$gene_name),]
@@ -312,22 +382,25 @@ counts <- as.matrix(counts)
 ```
 
 ```{r}
-cases.tpm <- counts[,1:97]
-controls.tpm <- counts[,98:ncol(counts)]
+cases.tpm <- counts[,1:96]
+controls.tpm <- counts[,97:ncol(counts)]
 
-mean(cases.tpm["PCSK9",])
-mean(controls.tpm["PCSK9",])
+dim(cases.tpm)
+dim(controls.tpm)
+
+mean(cases.tpm["BTC",])
+mean(controls.tpm["BTC",])
+
+table(AAA)
 ```
 
 ```{r}
-res1 <- resid(lm(counts["PCSK9",] ~ tec$FC + tec$Lane + tec$Library + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit))
-
-res2 <- lm(counts["PCSK9",] ~ tec$FC + tec$Lane + tec$Library + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit)$residuals
-
+res <- resid(lm(counts["BTC",] ~ tec$FC + tec$Lane + tec$Library + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit))
 res <-  data.frame(Expression = res)
 
-p <- ggplot(res, aes(x = AAA, y = Expression, fill = AAA)) + geom_boxplot() + ggtitle("PCSK9") +
-    stat_compare_means(method = "t.test") + ylab("Expression") +
+
+p <- ggplot(res, aes(x = AAA, y = Expression, fill = AAA)) + geom_boxplot() + ggtitle("BTC") +
+  stat_compare_means(method = "t.test", hjust = -0.5) + ylab("Expression") +
   theme(
     plot.title = element_text(hjust = 0.5, size = 22),
     legend.text = element_text(size = 18),
@@ -337,64 +410,19 @@ p <- ggplot(res, aes(x = AAA, y = Expression, fill = AAA)) + geom_boxplot() + gg
     axis.text.x = element_text(size = 20),
     axis.text.y = element_text(size = 20)
   ) +
-  scale_fill_discrete(name = "Status")
+  scale_fill_discrete(name = "Status") +
+  scale_fill_manual(values=c("cyan3", "red"))
 
-p + scale_fill_manual(values=c("deepskyblue1", "tomato1"))
+p
 
-#ggsave("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/PCSK9.png")
+#ggsave("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/ERBB4.png", width = 7, height = 5)
 ```
 
-
-#### Diameter:
-
-```{r}
-counts <- merge(counts.tpm, ann[,c("gene_id","gene_name")], by.x = 0, by.y = "gene_id")
-counts <- counts[,-1]
-counts <- counts[!duplicated(counts$gene_name),]
-counts <- counts %>% remove_rownames %>% column_to_rownames(var="gene_name")
-
-counts <- as.matrix(counts)
-```
-
-```{r}
-dia <- bio[!is.na(bio$aortc_diameter_mm),][,c("Muestra","aortc_diameter_mm")]
-
-counts <- counts[,colnames(counts) %in% dia$Muestra]
-tec2 <- tec[tec$Seq_ID %in% colnames(counts),]
-
-dia <- dia %>% remove_rownames %>% column_to_rownames(var="Muestra")
-
-res <- resid(lm(counts["PCSK9",] ~ tec2$FC + tec2$Lane + tec2$Library + tec2$GC_Mean + tec2$RIN + tec2$DV200 + tec2$Qubit))
-
-
-res <- data.frame(Expression = res,
-                  Diameter = dia)
-```
-
-```{r}
-ggplot(res, aes(x = aortc_diameter_mm, y = Expression)) + geom_point(color = "orangered2") + ggtitle("PCSK9") + ylab ("Expression") + xlab("Aortic Diameter (mm)") +
-  geom_smooth(method = 'lm', formula = y ~ x, color = "black") + stat_cor(method = "pearson") +
-  theme(
-    plot.title = element_text(hjust = 0.5, size = 22),
-    legend.text = element_text(size = 18),
-    legend.title = element_text(size = 20),
-    axis.title.x = element_text(size = 20),
-    axis.title.y = element_text(size = 20),
-    axis.text.x = element_text(size = 20),
-    axis.text.y = element_text(size = 20),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.background = element_blank(),
-    axis.line = element_line(colour = "black")
-  )
-
-#ggsave("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/PCSK9_Diameter.png")
-```
 
 
 #### EGFR:
 
-##### Case:
+##### By Case:
 
 ```{r}
 counts <- merge(counts.tpm, ann[,c("gene_id","gene_name")], by.x = 0, by.y = "gene_id")
@@ -406,8 +434,11 @@ counts <- as.matrix(counts)
 ```
 
 ```{r}
-cases.tpm <- counts[,1:97]
-controls.tpm <- counts[,98:ncol(counts)]
+cases.tpm <- counts[,1:96]
+controls.tpm <- counts[,97:ncol(counts)]
+
+dim(cases.tpm)
+dim(controls.tpm)
 
 mean(cases.tpm["EGFR",])
 mean(controls.tpm["EGFR",])
@@ -421,7 +452,7 @@ res <-  data.frame(Expression = res)
 
 
 p <- ggplot(res, aes(x = AAA, y = Expression, fill = AAA)) + geom_boxplot() + ggtitle("EGFR") +
-  stat_compare_means(method = "t.test") + ylab("Expression") +
+  stat_compare_means(method = "t.test", hjust = -0.5) + ylab("Expression (Normalized TPM)") +
   theme(
     plot.title = element_text(hjust = 0.5, size = 22),
     legend.text = element_text(size = 18),
@@ -431,15 +462,16 @@ p <- ggplot(res, aes(x = AAA, y = Expression, fill = AAA)) + geom_boxplot() + gg
     axis.text.x = element_text(size = 20),
     axis.text.y = element_text(size = 20)
   ) +
-  scale_fill_discrete(name = "Status")
+  scale_fill_discrete(name = "Status") +
+  scale_fill_manual(values=c("cyan3", "red"))
 
-p + scale_fill_manual(values=c("deepskyblue1", "tomato1"))
+p
 
-#ggsave("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/EGFR.png")
+ggsave("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/EGFR.png", width = 7, height = 5)
 ```
 
 
-##### Diameter:
+##### By Diameter:
 
 ```{r}
 counts <- merge(counts.tpm, ann[,c("gene_id","gene_name")], by.x = 0, by.y = "gene_id")

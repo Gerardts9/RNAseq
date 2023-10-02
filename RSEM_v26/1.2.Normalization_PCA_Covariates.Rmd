@@ -433,7 +433,7 @@ Correlations <- cbind(Correlations, dfPvalue[,-1])
 rownames(Correlations) <- paste0("PC",1:10)
 colnames(Correlations) <- c("CASE","FC","LANE","LIBRARY","GC_MEAN","RIN","DV200","QUBIT","INDEX.I5","INDEX.I7")
 
-write.xlsx(as.data.frame(Correlations), "C://Users/Gerard/Desktop/AAA/RNAseq/Corr_Tec_All.xlsx", sep = "\t", rowNames = T)
+#write.xlsx(as.data.frame(Correlations), "C://Users/Gerard/Desktop/AAA/RNAseq/Corr_Tec_All.xlsx", sep = "\t", rowNames = T)
 ```
 
 
@@ -700,7 +700,7 @@ write.xlsx(as.data.frame(Correlations), "C://Users/Gerard/Desktop/AAA/RNAseq/Cor
 ```
 
 
-1. Recommended Technical Variables: FC, LANE, GC_MEAN, RIN, DV200, QUBIT.
+1. Recommended Technical Variables: FC, LANE, GC_MEAN, RIN, DV200, QUBIT. (LIBRARY not included because is extremely correlated with Case)
 
 2. Recommended Biological Variables: SEX, AGE. With and Without SMOKING.
 

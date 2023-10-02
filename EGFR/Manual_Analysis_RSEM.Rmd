@@ -1,0 +1,277 @@
+---
+title: "1.3.Manual_Analysis_RSEM"
+author: "Gerard Temprano Sagrera"
+date: "2023-02-24"
+output: html_document
+---
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+library(data.table);library(edgeR);library(tidyverse);library(openxlsx);library(preprocessCore);library("org.Hs.eg.db");library(stats);library(qvalue);library(ggpubr);library(VennDiagram)
+```
+
+### Load Annotation file to change format names:
+
+```{r}
+ann <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Annotation/gencode.v26.annotation.fixed.gtf.gz")
+
+egfr.id <- ann[ann$gene_name %in% "EGFR",]$gene_id
+```
+
+### Counts are already in TPM from RSEM:
+
+```{r}
+counts.tpm <- read.table("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.RSEM.All.txt")
+```
+
+```{r}
+tpm_matrix <- as.matrix(counts.tpm)
+```
+
+### Load technical table :
+
+```{r}
+tec <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Tables/Technical_Complete.xlsx")
+tec <- tec[tec$Seq_ID %in% colnames(counts.tpm),]
+```
+
+### Load Biological data:
+
+```{r}
+bio <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/20221115_Datos Pacientes.xlsx")
+bio <- bio[2:nrow(bio),]
+bio <- bio[bio$Muestra %in% colnames(counts.tpm),]
+
+table(bio$Status)
+
+# Smoking:
+bio$Smoking2 <- ifelse(bio$Smoking == 0, 0, 1)
+```
+
+
+### Convert TPM counts to DGElist object:
+
+```{r}
+dge <- DGEList(counts = counts.tpm)
+
+egfr <- t(dge[egfr.id,]$counts)
+
+mean(egfr)
+mean(egfr[1:96,])
+mean(egfr[97:140,])
+
+
+# Batch and FC are not included because are highly correlated with AAA:
+design <-
+  model.matrix(~ egfr + tec$FC + tec$Lane + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$SEXO + bio$age)
+
+colnames(design) <-
+  c("(Intercept)",
+    "EGFR",
+    "FC1",
+    "FC2",
+    "Lane1",
+    "Lane2",
+    "GC_Mean",
+    "RIN",
+    "DV200",
+    "Qubit",
+    "Sex",
+    "Age")
+```
+
+### Remove lowely expressed genes using EdgeR:
+
+```{r}
+keep <- filterByExpr(dge, design)
+
+paste0("We keep ", sum(keep), " genes") # 11,196
+paste0("We remove ", sum(!keep), " genes") # 16,094
+
+dge <- dge[keep,,keep.lib.sizes=FALSE]
+```
+
+### Apply quantile normalization to counts:
+
+```{r}
+counts.tpm <- as.data.frame(normalize.quantiles(as.matrix(dge$counts), keep.names = T))
+```
+
+
+```{r}
+tpm_matrix <- as.matrix(counts.tpm)
+```
+
+
+### Manual Differential Expression:
+
+```{r}
+Pvalue <-
+  apply(counts.tpm, 1, function(x)
+    summary(
+      lm(
+        x ~ egfr + tec$FC + tec$Lane + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age + bio$SEXO
+      )
+    )[4][[1]][2, 4])
+
+Coef <-
+  apply(counts.tpm, 1, function(x)
+    summary(
+      lm(
+        x ~ egfr + tec$FC + tec$Lane + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age + bio$SEXO
+      )
+    )[4][[1]][2, 1])
+```
+
+
+### Plot P-values:
+
+```{r}
+#png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Hist_Cases_vs_Controls.png", height = 10000, width = 10000, res #= 1200)
+#hist(Pvalue, main = "", cex.main = 2)
+#dev.off()
+
+hist(Pvalue, main = "EGFR All", cex.main = 2)
+```
+
+### Create qvalue object:
+
+```{r}
+qobj <- qvalue(p = Pvalue)
+```
+
+```{r, warning=FALSE}
+#summary(qobj)
+#hist(qobj)
+#plot(qobj)
+```
+
+```{r}
+Results <- data.frame(
+  pvalue = Pvalue,
+  qvalue = qobj$qvalues,
+  fdr = p.adjust(Pvalue, method = "fdr"),
+  pi1 = 1-qobj$pi0,
+  Beta = Coef
+)
+
+Results <- merge(Results, ann[,c("gene_id","gene_name")], by.x = 0, by.y = "gene_id")
+names(Results)[names(Results) == "Row.names"] <- "gene_id"
+Results <- Results[!duplicated(Results$gene_name),]
+Results <- Results %>% remove_rownames %>% column_to_rownames(var="gene_name")
+Results <- Results[order(Results$pvalue),]
+
+nrow(Results[Results$fdr < 0.05,]) # 5,619
+```
+
+
+
+### Plot residuals:
+
+#### EGFR:
+
+##### Case vs Control:
+
+```{r}
+counts <- merge(counts.tpm, ann[,c("gene_id","gene_name")], by.x = 0, by.y = "gene_id")
+counts <- counts[,-1]
+counts <- counts[!duplicated(counts$gene_name),]
+counts <- counts %>% remove_rownames %>% column_to_rownames(var="gene_name")
+
+counts <- as.matrix(counts)
+```
+
+```{r}
+cases.tpm <- counts[,1:96]
+controls.tpm <- counts[,97:ncol(counts)]
+
+dim(cases.tpm)
+dim(controls.tpm)
+
+mean(cases.tpm["EGFR",])
+mean(controls.tpm["EGFR",])
+
+table(AAA)
+```
+
+```{r}
+# Set "Control" to be the first level:
+AAA <- factor(x = c(rep("Case", 96), rep("Control", 44)),
+              levels = c("Control", "Case"))
+```
+
+
+
+```{r}
+res <- resid(lm(counts["EGFR",] ~ tec$FC + tec$Lane + tec$Library + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit))
+res <-  data.frame(Expression = res)
+
+
+p <- ggplot(res, aes(x = AAA, y = Expression, fill = AAA)) + geom_boxplot() + ggtitle("EGFR") +
+  stat_compare_means(method = "t.test", hjust = -0.5) + ylab("Expression (Normalized TPM)") +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 22),
+    legend.text = element_text(size = 18),
+    legend.title = element_text(size = 20),
+    axis.title.x = element_text(size = 20),
+    axis.title.y = element_text(size = 20),
+    axis.text.x = element_text(size = 20),
+    axis.text.y = element_text(size = 20)
+  ) +
+  scale_fill_discrete(name = "Status") + 
+  scale_fill_manual(values=c("cyan3", "red"))
+
+p
+
+ggsave("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/EGFR.png", width = 7, height = 5)
+```
+
+
+##### Diameter:
+
+```{r}
+counts <- merge(counts.tpm, ann[,c("gene_id","gene_name")], by.x = 0, by.y = "gene_id")
+counts <- counts[,-1]
+counts <- counts[!duplicated(counts$gene_name),]
+counts <- counts %>% remove_rownames %>% column_to_rownames(var="gene_name")
+
+counts <- as.matrix(counts)
+```
+
+```{r}
+dia <- bio[!is.na(bio$aortc_diameter_mm),][,c("Muestra","aortc_diameter_mm")]
+
+counts <- counts[,colnames(counts) %in% dia$Muestra]
+tec2 <- tec[tec$Seq_ID %in% colnames(counts),]
+
+dia <- dia %>% remove_rownames %>% column_to_rownames(var="Muestra")
+
+res <- resid(lm(counts["EGFR",] ~ tec2$FC + tec2$Lane + tec2$Library + tec2$GC_Mean + tec2$RIN + tec2$DV200 + tec2$Qubit))
+
+
+res <- data.frame(Expression = res,
+                  Diameter = dia)
+```
+
+```{r}
+ggplot(res, aes(x = aortc_diameter_mm, y = Expression)) + geom_point(color = "orangered2") + ggtitle("EGFR") + ylab ("Expression") + xlab("Aortic Diameter (mm)") +
+  geom_smooth(method = 'lm', formula = y ~ x, color = "black") + stat_cor(method = "pearson") + 
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 22),
+    legend.text = element_text(size = 18),
+    legend.title = element_text(size = 20),
+    axis.title.x = element_text(size = 20),
+    axis.title.y = element_text(size = 20),
+    axis.text.x = element_text(size = 20),
+    axis.text.y = element_text(size = 20),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_blank(),
+    axis.line = element_line(colour = "black")
+  )
+
+
+ggsave("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/EGFR_Diameter.png")
+```
+
+
+
