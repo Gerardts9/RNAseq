@@ -5,7 +5,8 @@ ann$gene_id <- substr(ann$gene_id, 1, 15)
 head(ann)
 
 # New results:
-cc <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Cases_Controls.txt")
+cc <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Cases_Controls.xlsx")
+head(cc)
 
 alt <- read.table("C://Users/Gerard/Desktop/AAA/RNAseq/SUPPA/AAA_Sig_Results.txt")
 alt$gene_id <- substr(rownames(alt), 1, 15)
@@ -22,21 +23,19 @@ adv$Gene.Symbol <- gsub("-", "", adv$Gene.Symbol)
 up <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/UpDown Results.xlsx", sheet = 1)
 down <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/UpDown Results.xlsx", sheet = 2)
 
-small <- read_excel("C://Users/Gerard/Desktop/AAA/RNAseq/SmallResults.xls")
-large <- read_excel("C://Users/Gerard/Desktop/AAA/RNAseq/LargeResults.xls")
+smla <- read_excel("C://Users/Gerard/Desktop/AAA/RNAseq/SmallLargeResults.xls")
 
-cc <- cc[!cc$V1 %in% med$Gene.Symbol,]
-cc <- cc[!cc$V1 %in% adv$Gene.Symbol,]
+cc <- cc[!cc$Gene.Name %in% med$Gene.Symbol,]
+cc <- cc[!cc$Gene.Name %in% adv$Gene.Symbol,]
 
-cc <- cc[!cc$V1 %in% up$X2,]
-cc <- cc[!cc$V1 %in% down$Abbreviation,]
+cc <- cc[!cc$Gene.Name %in% up$Gene.Symbol,]
+cc <- cc[!cc$Gene.Name %in% down$Gene.name,]
 
-cc <- cc[!cc$V1 %in% small$Symbol,]
-cc <- cc[!cc$V1 %in% large$Symbol,]
+cc <- cc[!cc$Gene.Name %in% smla$Gene.Symbol,]
 
 #write.xlsx(cc[1:20,], "C://Users/Gerard/Desktop/ESHG/Poster/Table1V2.xlsx", sep = "\t")
 
-common <- intersect(cc$V1, alt$gene_name)
+common <- intersect(cc$Gene.Name, alt$gene_name)
 
 #write.xlsx(cc[cc$V1 %in% common, ][1:10], "C://Users/Gerard/Desktop/ESHG/Poster/Table2.xlsx", sep = "\t")
 
