@@ -1,8 +1,5 @@
 library(data.table);library(clusterProfiler);library(openxlsx)
 
-med <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/TunicaSpecificResults.xlsx", sheet = 1)
-adv <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/TunicaSpecificResults.xlsx", sheet = 2)
-
 ann <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Annotation/gencode.v26.annotation.fixed.gtf.gz")
 ann$gene_id2 <- substr(ann$gene_id, 1, 15)
 
