@@ -104,9 +104,9 @@ for (file_path in ff) {
   exonic_reads_df <- rbind(exonic_reads_df, data.frame(Sample = sample_id, Exonic_Reads = exonic_reads, stringsAsFactors = FALSE))
 }
 
-#write.csv(input_reads_df, file = "/home/gerard/AAA/Gene_Counts/input_reads.csv", row.names = FALSE)
-#write.csv(mapped_reads_df, file = "/home/gerard/AAA/Gene_Counts/mapped_reads.csv", row.names = FALSE)
-#write.csv(exonic_reads_df, file = "/home/gerard/AAA/Gene_Counts/exonic_reads.csv", row.names = FALSE)
+write.csv(input_reads_df, file = "/home/gerard/AAA/Gene_Counts/input_reads.csv", row.names = FALSE)
+write.csv(mapped_reads_df, file = "/home/gerard/AAA/Gene_Counts/mapped_reads.csv", row.names = FALSE)
+write.csv(exonic_reads_df, file = "/home/gerard/AAA/Gene_Counts/exonic_reads.csv", row.names = FALSE)
 ```
 
 
@@ -154,15 +154,15 @@ mean_exonic_rate <- mean(exonic_rate)
 
 
 
-
-
 ggplot(data.frame(x = exonic_rate), aes(x)) +
   geom_histogram(binwidth = 1, fill = "lightblue", color = "blue") +
   ggtitle("Exonic Rate") +
   labs(x = "Exonic Reads/Total Reads", y = "Count") +
   theme_minimal() +
   theme(plot.title = element_text(hjust = 0.5)) +
-  geom_vline(xintercept=mean_exonic_rate, color="red", linetype="dashed", size=1) +
+  geom_vline(xintercept=mean_exonic_rate, color="red", linetype="dashed", size=1)
+
+
   geom_text(aes(x=mean_exonic_rate-3, y=max(layer_data(p)$count), 
                   label=paste("Mean: ", round(mean_exonic_rate,2))),
                   color="red", hjust=0)
