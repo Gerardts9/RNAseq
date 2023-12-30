@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r, warning=FALSE, message=FALSE, echo=FALSE}
-library(data.table);library(edgeR);library(tidyverse);library(openxlsx);library(preprocessCore);library("org.Hs.eg.db");library(stats);library(qvalue);library(ggpubr);library(VennDiagram);library(grid)
+library(data.table);library(edgeR);library(tidyverse);library(openxlsx);library(preprocessCore);library("org.Hs.eg.db");library(stats);library(qvalue);library(ggpubr);library(VennDiagram);library(grid);library(clusterProfiler)
 ```
 
 ### Load Annotation file to change format names:
@@ -52,21 +52,6 @@ bio$Smoking2 <- ifelse(bio$Smoking == 0, 0, 1)
 
 ```{r}
 dge <- DGEList(counts = counts.tpm)
-
-design <-
-  model.matrix(
-    ~ bio$aortc_diameter_mm + tec$Date + tec$Batch + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age)
-
-colnames(design) <-
-  c("(Intercept)",
-    "Diameter",
-    "Date",
-    "Batch",
-    "GC_Mean",
-    "RIN",
-    "DV200",
-    "Qubit",
-    "Age")
 ```
 
 ### Remove lowely expressed genes using manual filtering:
@@ -95,14 +80,14 @@ Pvalue <-
   apply(counts.tpm, 1, function(x)
     summary(
       lm(
-        x ~ bio$aortc_diameter_mm + tec$Date + tec$Batch + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age
+        x ~ bio$aortc_diameter_mm + tec$Date + tec$Batch + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age + bio$SEXO
       )
     )[4][[1]][2, 4])
 Coef <-
   apply(counts.tpm, 1, function(x)
     summary(
       lm(
-        x ~ bio$aortc_diameter_mm + tec$Date + tec$Batch + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age
+        x ~ bio$aortc_diameter_mm + tec$Date + tec$Batch + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age + bio$SEXO
       )
     )[4][[1]][2, 1])
 ```
@@ -111,9 +96,9 @@ Coef <-
 ### Plot P-values:
 
 ```{r}
-png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Results/Hist_Diameter.png", height = 10000, width = 10000, res = 1200)
-hist(Pvalue, main = "", cex.main = 2)
-dev.off()
+#png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Results/Hist_Diameter.png", height = 10000, width = 10000, res = 1200)
+#hist(Pvalue, main = "", cex.main = 2)
+#dev.off()
 
 hist(Pvalue, main = "Diameter", cex.main = 2)
 ```
@@ -147,8 +132,12 @@ Results <- Results[order(Results$pvalue),]
 
 nrow(Results[Results$fdr < 0.05,]) # 42
 
+
+#write.xlsx(Results, "C://Users/Gerard/Desktop/AAA/RNAseq/AllRes/Diameter.xlsx", quote = F, rowNames = T, colNames = T)
+
 #write.xlsx(Results[Results$fdr < 0.05,], "C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Diameter.xlsx", sep = "\t", row.names = T)
 ```
+
 
 ### Diameter:
 
@@ -163,8 +152,9 @@ go_enrich <- enrichGO(gene          = entrez_ids$ENTREZID,
                       keyType       = "ENTREZID",
                       ont           = "ALL", # Choose from "BP" (Biological Process), "CC" (Cellular Component), or "MF" (Molecular Function)
                       pAdjustMethod = "BH",
-                      pvalueCutoff  = 0.1,
-                      qvalueCutoff  = 0.2)
+                      pvalueCutoff  = 0.05,
+                      qvalueCutoff  = 0.2,
+                      minGSSize = 2)
 ```
 
 ```{r}
@@ -180,7 +170,7 @@ go_enrich <- enrichGO(gene          = entrez_ids$ENTREZID,
 #                          organism     = "hsa",
 #                          keyType      = "kegg",
 #                          pAdjustMethod = "BH",
-#                          pvalueCutoff = 0.1,
+#                          pvalueCutoff = 0.05,
 #                          qvalueCutoff = 0.2)
 ```
 
@@ -375,9 +365,9 @@ Coef <-
 ### Plot P-values:
 
 ```{r}
-png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Results/Hist_Type.png", height = 10000, width = 10000, res = 1200)
-hist(Pvalue, main = "Type", cex.main = 2)
-dev.off()
+#png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Results/Hist_Type.png", height = 10000, width = 10000, res = 1200)
+#hist(Pvalue, main = "Type", cex.main = 2)
+#dev.off()
 
 hist(Pvalue, main = "Type", cex.main = 2)
 ```
@@ -425,21 +415,6 @@ counts.tpm <- read.table("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts
 
 ```{r}
 dge <- DGEList(counts = counts.tpm)
-
-design <-
-  model.matrix(
-    ~ bio$symptomatic + tec$Date + tec$Batch + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age)
-
-colnames(design) <-
-  c("(Intercept)",
-    "Symptoms",
-    "Date",
-    "Batch",
-    "GC_Mean",
-    "RIN",
-    "DV200",
-    "Qubit",
-    "Age")
 ```
 
 ### Remove lowely expressed genes using LIMMA:
@@ -483,9 +458,9 @@ Coef <-
 ### Plot P-values:
 
 ```{r}
-png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Results/Hist_Symptoms.png", height = 10000, width = 10000, res = 1200)
-hist(Pvalue, main = "Symptoms", cex.main = 2)
-dev.off()
+#png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Results/Hist_Symptoms.png", height = 10000, width = 10000, res = 1200)
+#hist(Pvalue, main = "Symptoms", cex.main = 2)
+#dev.off()
 
 hist(Pvalue, main = "Symptoms", cex.main = 2)
 ```
@@ -519,6 +494,8 @@ Results <- Results[order(Results$pvalue),]
 
 nrow(Results[Results$fdr < 0.05,]) # 30
 
+#write.xlsx(Results, "C://Users/Gerard/Desktop/AAA/RNAseq/AllRes/Symptoms.xlsx", quote = F, rowNames = T, colNames = T)
+
 #write.xlsx(Results[Results$fdr < 0.05,], "C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Symptoms.xlsx", sep = "\t", row.names = T)
 ```
 
@@ -546,6 +523,14 @@ dotplot(go_enrich, showCategory = 10) + ggtitle("GO Enrichment")
 dev.off()
 ```
 
+
+### Save results:
+
+```{r}
+write.xlsx(go_enrich@result, "C://Users/Gerard/Desktop/AAA/RNAseq/Supplementary_Tables/GO_Enrich_Symptoms.xlsx")
+```
+
+
 ```{r}
 # KEGG enrichment analysis
 kegg_enrich <- enrichKEGG(gene         = entrez_ids$ENTREZID,
@@ -555,6 +540,7 @@ kegg_enrich <- enrichKEGG(gene         = entrez_ids$ENTREZID,
                           pvalueCutoff = 0.05,
                           qvalueCutoff = 0.2)
 ```
+
 
 ```{r}
 # KEGG enrichment dot plot
