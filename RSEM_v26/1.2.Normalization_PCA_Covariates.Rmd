@@ -13,7 +13,7 @@ library(edgeR);library(openxlsx);library(data.table);library(DESeq2);library(txi
 ### Counts are already in TPM from RSEM:
 
 ```{r}
-counts.tpm <- read.table("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.RSEM.All.txt")
+#counts.tpm <- read.table("C://Users/Gerard/Desktop/AAA/RNAseq/Gene_counts/Counts.RSEM.All.txt")
 ```
 
 
@@ -48,14 +48,14 @@ bio <- bio[bio$Muestra %in% colnames(counts.tpm),]
 
 We apply this filter here, then we will apply LIMMA. Keep genes that have more than 50% of non-zero counts across all samples:
 ```{r}
-keep <- apply(counts.tpm, 1, function(x) sum(x == 0) <= 70)
+#keep <- apply(counts.tpm, 1, function(x) sum(x == 0) <= 70)
 #sum(keep) # 17,970
 
-counts.tpm <- counts.tpm[keep,]
+#counts.tpm <- counts.tpm[keep,]
 
 # Check how this filter affects cases and controls:
-cases.tpm <- counts.tpm[,1:97]
-controls.tpm <- counts.tpm[,98:ncol(counts.tpm)]
+#cases.tpm <- counts.tpm[,1:97]
+#controls.tpm <- counts.tpm[,98:ncol(counts.tpm)]
 
 #sum(apply(cases.tpm, 1, function(x) sum(x == 0) <= 48)) # 17,884
 #sum(apply(controls.tpm, 1, function(x) sum(x == 0) <= 22)) # 17,314
@@ -64,25 +64,27 @@ controls.tpm <- counts.tpm[,98:ncol(counts.tpm)]
 ### Transform to DGE format:
 
 ```{r}
-dge <- DGEList(counts=counts.tpm)
+#dge <- DGEList(counts=counts.tpm)
 ```
 
 ### Apply TMM Normalization:
 
 ```{r}
-dge <- calcNormFactors(dge, method = "TMM")
+#dge <- calcNormFactors(dge, method = "TMM")
 ```
 
 ### Apply logCPM transformation to test the effects of covariates:
 
 ```{r}
-dgeTpmAdjCpm <- cpm(dge)
+#dgeTpmAdjCpm <- cpm(dge)
 ```
 
 ### Perform PCA:
 
 ```{r}
-my_pca <- prcomp(t(dgeTpmAdjCpm), center = T, scale. = T)
+counts.tpm.matrix <- as.matrix(counts.tpm)
+
+my_pca <- prcomp(t(counts.tpm.matrix), center = T, scale. = T)
 summaryPca <- summary(my_pca)
 ```
 
@@ -102,7 +104,7 @@ plot(cumsum(my_pca$sdev^2 / sum(my_pca$sdev^2))[1:10], type="b", ylab = "Cummula
 
 ```{r}
 #png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/Plots/PCA_Plot.png")
-ggbiplot(my_pca, labels = colnames(dgeTpmAdjCpm), groups = as.factor(tec$Case), var.axes = F, obs.scale = 1, var.scale = 1) +
+ggbiplot(my_pca, labels = colnames(counts.tpm), groups = as.factor(tec$Case), var.axes = F, obs.scale = 1, var.scale = 1) +
   scale_color_discrete(name = "") +
   theme(legend.direction = "horizontal", legend.position = "top")
 #dev.off()
@@ -259,7 +261,7 @@ ggplot(boxplotMatrix, aes(x=PC1, y=PC2, color=GC_Mean)) +
 
 ```{r}
 colnames(dfPvalue) <- c("pvalue", "covariate")
-dfPvalue$covariate <- ifelse(dfPvalue$pvalue < 0.05, paste0(dfPvalue$covariate, " ***"), dfPvalue$covariate)
+dfPvalue$covariate <- ifelse(dfPvalue$pvalue < 0.05/10, paste0(dfPvalue$covariate, " ***"), dfPvalue$covariate)
 
 Correlations <- cbind(Correlations, dfPvalue[,-1])
 ```
@@ -433,7 +435,7 @@ Correlations <- cbind(Correlations, dfPvalue[,-1])
 rownames(Correlations) <- paste0("PC",1:10)
 colnames(Correlations) <- c("CASE","FC","LANE","LIBRARY","GC_MEAN","RIN","DV200","QUBIT","INDEX.I5","INDEX.I7")
 
-#write.xlsx(as.data.frame(Correlations), "C://Users/Gerard/Desktop/AAA/RNAseq/Corr_Tec_All.xlsx", sep = "\t", rowNames = T)
+write.xlsx(as.data.frame(Correlations), "C://Users/Gerard/Desktop/AAA/RNAseq/Corr_Tec_All_2.xlsx", sep = "\t", rowNames = T)
 ```
 
 
@@ -696,7 +698,7 @@ Correlations <- cbind(Correlations, dfPvalue[,-1])
 rownames(Correlations) <- paste0("PC",1:10)
 colnames(Correlations) <- c("SEX","AGE","TYPE","HEIGHT","WEIGHT","SMOKING","DIAMETER","O.ANEURYSM")
 
-write.xlsx(as.data.frame(Correlations), "C://Users/Gerard/Desktop/AAA/RNAseq/Corr_Bio_All.xlsx", sep = "\t", rowNames = T)
+write.xlsx(as.data.frame(Correlations), "C://Users/Gerard/Desktop/AAA/RNAseq/Corr_Bio_All_2.xlsx", sep = "\t", rowNames = T)
 ```
 
 
