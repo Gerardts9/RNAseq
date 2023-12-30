@@ -8,10 +8,13 @@ head(ann)
 # Load Results:
 #################################################
 cc <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Cases_Controls_No_Smoking.xlsx")
+cc_no_it <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Cases_Controls_No_Smoking_No_IT.xlsx")
 dia <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Diameter.xlsx")
 sym <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Symptoms.xlsx")
 
 length(unique(c(dia$Gene.Name, sym$Gene.Name)))
+
+length(intersect(cc$Gene.Name, dia$Gene.Name))
 
 intersect(c(dia$Gene.Name,sym$Gene.Name), cc$Gene.Name)
 
@@ -162,7 +165,7 @@ grid.draw(v)
 # Splicing vs Status:
 ########################################
 v <- venn.diagram(
-  x = list(A = alt$gene_name, B = cc$Gene.Name),
+  x = list(A = alt$gene_name, B = cc_no_it$Gene.Name),
   category.names = c("Splicing", "Status"),
   fill = c("blue", "red"),
   alpha = 0.5,
@@ -172,7 +175,9 @@ v <- venn.diagram(
 
 lapply(v, function(i) i$label)
 
-setdiff(alt$gene_name, cc$Gene.Name)
+intersect(alt$gene_name, cc$Gene.Name)
+intersect(alt$gene_name, cc_no_it$Gene.Name)
+
 
 v[[6]]$label <- paste(setdiff(alt$gene_name, cc$Gene.Name), collapse="\n")  
 v[[7]]$label <- paste(intersect(alt$gene_name, cc$Gene.Name), collapse="\n")  
