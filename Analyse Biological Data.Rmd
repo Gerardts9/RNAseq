@@ -1,0 +1,292 @@
+---
+title: "Analyse Biological Data"
+author: "Gerard Temprano Sagrera"
+date: "2023-10-17"
+output: html_document
+---
+
+```{r}
+### Load Biological data:
+
+bio <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/20221115_Datos Pacientes.xlsx")
+bio <- bio[2:nrow(bio),]
+
+# Remove sex mismatch individual:
+bio <- bio[!bio$Muestra %in% "HSP075",]
+
+table(bio$Status)
+
+bio.cases <- bio[bio$Status == "Case",]
+bio.controls <- bio[bio$Status == "Control",]
+```
+
+
+# AGE:
+```{r}
+mean(bio.controls$age);range(bio.controls$age)
+
+mean(bio.cases$age);range(bio.cases$age)
+
+t.test(bio.controls$age, bio.cases$age)
+```
+
+
+
+# SEX:
+```{r}
+table(bio.controls$SEXO)
+100*(21/(23+21))
+
+table(bio.cases$SEXO)
+100*(92/(92+4))
+
+controls <- c(21, 23) # Number of males and females in controls
+cases <- c(92, 4) # Number of males and females in cases
+
+data_matrix <- rbind(controls, cases)
+
+chisq.test(data_matrix)
+```
+
+
+# ANEURYSM TYPE:
+```{r}
+table(bio.cases$TIPOANEURISMA, useNA="always")
+100*sum(is.na(bio.cases$TIPOANEURISMA))/nrow(bio.cases)
+
+53/(52+16)*100
+16/(52+16)*100
+27/96*100
+
+100*(53/(53+16))
+```
+
+
+# SYMPTOMATIC:
+```{r}
+table(bio.cases$symptomatic, useNA="always")
+100*(23/nrow(bio.cases))
+
+table(bio.cases$symptomatic, useNA="always")
+100*(5/(68+5))
+```
+
+
+# SMOKING:
+```{r}
+table(bio$Smoking, useNA = "always")
+100*(19/nrow(bio))
+
+table(bio.controls$Smoking, useNA = "always")
+100*(26/nrow(bio.controls[!is.na(bio.controls$Smoking),])) # Never smokers.
+100*(3/nrow(bio.controls[!is.na(bio.controls$Smoking),])) # Former smokers.
+100*(8/nrow(bio.controls[!is.na(bio.controls$Smoking),])) # Current smokers
+
+table(bio.cases$Smoking, useNA = "always")
+100*(15/nrow(bio.cases[!is.na(bio.cases$Smoking),])) # Never smokers.
+100*(42/nrow(bio.cases[!is.na(bio.cases$Smoking),])) # Former smokers.
+100*(27/nrow(bio.cases[!is.na(bio.cases$Smoking),])) # Current smokers.
+
+controls <- c(8, 29) # Number of current smokers vs non in controls
+cases <- c(27, 57) # Number of current smokers vs non in cases
+
+data_matrix <- rbind(controls, cases)
+
+chisq.test(data_matrix)
+
+
+controls <- c(3, 34) # Number of past smokers vs non in controls
+cases <- c(42, 42) # Number of past smokers vs non in cases
+
+data_matrix <- rbind(controls, cases)
+
+chisq.test(data_matrix)
+```
+
+
+# HYPERTENSION:
+```{r}
+table(bio$hypertension, useNA="always")
+100*(19/nrow(bio))
+
+
+table(bio.controls$hypertension, useNA = "always")
+100*(15/(15+22))
+
+table(bio.cases$hypertension, useNA = "always")
+100*(54/(30+54))
+
+controls <- c(15, 22) # Number of hypertension in controls
+cases <- c(54, 30) # Number of hypertension vs non in cases
+
+data_matrix <- rbind(controls, cases)
+
+chisq.test(data_matrix)
+```
+
+
+
+# DYSLIPIDEMIA:
+```{r}
+table(bio$dyslipidemia, useNA="always")
+100*(19/nrow(bio))
+
+
+table(bio.controls$dyslipidemia, useNA = "always")
+100*(10/(10+27))
+
+table(bio.cases$dyslipidemia, useNA = "always")
+100*(46/(46+38))
+
+
+controls <- c(10, 27) # Number of dyslipidemics in controls
+cases <- c(46, 38) # Number of dyslipidemics vs non in cases
+
+data_matrix <- rbind(controls, cases)
+
+chisq.test(data_matrix)
+```
+
+
+
+# DIABETES MIELITUS:
+```{r}
+table(bio$diabetes.mellitus, useNA="always")
+100*(19/nrow(bio))
+
+
+table(bio.controls$diabetes.mellitus, useNA = "always")
+100*(5/(5+32))
+
+table(bio.cases$diabetes.mellitus, useNA = "always")
+100*(12/(12+72))
+
+
+controls <- c(5, 32) # Number of diabetics vs non in controls
+cases <- c(12, 72) # Number of diabetics vs non in cases
+
+data_matrix <- rbind(controls, cases)
+
+chisq.test(data_matrix)
+```
+
+
+# PAD:
+```{r}
+table(bio.cases$PAD, useNA="always")
+100*(57/nrow(bio.cases))
+
+table(bio.cases$PAD, useNA = "always")
+100*(23/(23+60))
+```
+
+
+
+# OTHER ANEURYSM:
+```{r}
+table(bio.cases$other_aneurysm, useNA = "always")
+100*(12/nrow(bio.cases))
+
+table(bio.cases$other_aneurysm, useNA="always")
+100*(25/(25+59))
+```
+
+# CVE
+```{r}
+table(bio$CVE, useNA="always")
+100*(21/nrow(bio))
+
+
+table(bio.controls$CVE, useNA = "always")
+100*(3/(3+34))
+
+table(bio.cases$CVE, useNA = "always")
+100*(36/(36+46))
+
+
+controls <- c(3, 34) # Number of CVE in controls
+cases <- c(36, 46) # Number of CVE in cases
+
+data_matrix <- rbind(controls, cases)
+
+chisq.test(data_matrix)
+```
+
+
+
+# CVD:
+```{r}
+table(bio$CVD, useNA="always")
+100*(27/nrow(bio))
+
+
+table(bio.controls$CVD, useNA = "always")
+100*(1/(28+1))
+
+table(bio.cases$CVD, useNA = "always")
+100*(16/(68+16))
+
+
+controls <- c(1, 28) # Number of CVD in controls
+cases <- c(16, 68) # Number of CVD in cases
+
+data_matrix <- rbind(controls, cases)
+
+chisq.test(data_matrix)
+```
+
+
+
+# COPD:
+```{r}
+table(bio$COPD, useNA="always")
+100*(19/nrow(bio))
+
+
+table(bio.controls$COPD, useNA = "always")
+100*(1/(36+1))
+
+table(bio.cases$COPD, useNA = "always")
+100*(15/(15+69))
+
+
+controls <- c(1, 36) # Number of CVD in controls
+cases <- c(15, 69) # Number of CVD in cases
+
+data_matrix <- rbind(controls, cases)
+
+chisq.test(data_matrix)
+```
+
+
+
+
+# KIDNEY DISEASE:
+```{r}
+table(bio$kidney_disease, useNA="always")
+100*(19/nrow(bio))
+
+
+table(bio.controls$kidney_disease, useNA = "always")
+100*(2/(2+35))
+
+table(bio.cases$kidney_disease, useNA = "always")
+100*(17/(17+67))
+
+
+controls <- c(2, 35) # Number of kidney_disease in controls
+cases <- c(17, 67) # Number of kidney_disease in cases
+
+data_matrix <- rbind(controls, cases)
+
+chisq.test(data_matrix)
+```
+
+# DIAMETER:
+```{r}
+mean(bio.cases$aortc_diameter_mm, na.rm = T)
+range(bio.cases$aortc_diameter_mm, na.rm = T)
+```
+
+
+
