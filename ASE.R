@@ -81,7 +81,8 @@ dev.off()
 
 
 library(data.table);library(tidyr);library(tidyverse);library(ggplot2);library(ggbiplot);library(openxlsx);
-library(dplyr);library(biomaRt);library(clusterProfiler);library(aPEAR);library(org.Hs.eg.db)
+library(dplyr);library(biomaRt);library(aPEAR);library(factoextra)
+library(clusterProfiler);library(org.Hs.eg.db)
 
 
 # Function to split values and create new columns for each gene
@@ -158,10 +159,10 @@ fwrite(cases_split2, "/home/gerard/AAA/ASE/Cases_Counts.txt", sep = "\t", row.na
 
 # Clustering with GTEx controls data:
 ######################
-cases <- fread("/home/gerard/AAA/ASE/Cases_Counts.txt")
+cases <- as.data.frame(fread("/home/gerard/AAA/ASE/Cases_ratio.txt"))
 cases <- cases %>% remove_rownames %>% column_to_rownames(var="V1")
 
-controls <- fread("/home/gerard/AAA/ASE/Controls_Counts.txt")
+controls <- as.data.frame(fread("/home/gerard/AAA/ASE/Controls_ratio.txt"))
 controls <- controls %>% remove_rownames %>% column_to_rownames(var="V1")
 
 common <- intersect(names(cases),names(controls))
@@ -173,6 +174,7 @@ if (identical(names(cases),names(controls)) != TRUE){warning("Genes are not the 
 
 all <- rbind(cases,controls)
 all[1:5,1:5]
+dim(all) # 399 56200
 
 aaa <- as.factor(c(rep(1,nrow(cases)),rep(0, nrow(controls))))
 
@@ -221,15 +223,71 @@ summed_data <- fread("/home/gerard/AAA/ASE/Cases_Counts.txt")
 
 
 
-# Compare ratios between cases and controls:
+# Compare p-values between candidate genes and all genes:
+######################
+# Load AAAGen results:
+
+gwas <- fread("/home/gerard/AAA_MR/AAA_hg38.txt.gz")
+gwas2 <- gwas[gwas$'P-value' < 5e-8, ]
+
+
+# Concatenate all files:
+aes <- list.files("/home/gerard/AAA/ASE/Results/", pattern = "allelic_counts.txt", full.names = T, recursive = T)
+over.8 <- c()
+
+for (i in 1:length(aes)) {
+  ff <- fread(aes[i])
+  ff$Table <- i
+  ff2 <- subset(ff, ff$totalCount >= 8)
+  over.8 <- rbind(over.8, ff2)
+}
+
+# Perform a binomial test for deviation from 0.5:
+over.8$binom_p <- apply(over.8[,c("refCount","altCount")], 1, function(x) binom.test(x[1],x[1]+x[2],p=0.5)$p.value)
+over.8$contig <- gsub("chr","",over.8$contig)
+over.8$MarkerName <- paste0(over.8$contig, ":", over.8$position)
+
+length(intersect(gwas2$MarkerName, over.8$MarkerName))
+
+over.8[over.8$binom_p == 0,]$binom_p <- 5e-324
+
+png("/home/gerard/AAA/ASE/Plots/QQPlot_All_Genes.png")
+ggd.qqplot(over.8$binom_p)
+dev.off()
+
+png("/home/gerard/AAA/ASE/Plots/QQPlot_Candidate_Genes.png")
+ggd.qqplot(over.8[over.8$MarkerName %in% gwas2$MarkerName,]$binom_p)
+dev.off()
+
+
+png("/home/gerard/AAA/ASE/Plots/QQPlot.png")
+o1 = -log10(sort(over.8$binom_p, decreasing = FALSE))
+e1 = -log10(1:length(o1) / length(o1))
+
+o2 = -log10(sort(over.8[over.8$MarkerName %in% gwas2$MarkerName,]$binom_p, decreasing = FALSE))
+e2 = -log10(1:length(o2) / length(o2))
+
+max_e = max(max(e1), max(e2))
+max_o = max(max(o1), max(o2))
+
+plot(e1, o1, pch = 19, cex = 1, 
+     xlab = expression(Expected ~~-log[10](italic(p))), 
+     ylab = expression(Observed ~~-log[10](italic(p))), 
+     xlim = c(0, max_e), ylim = c(0, max_o), col = "red")
+
+points(e2, o2, pch = 19, cex = 1, col = "blue")
+dev.off()
+######################
+
+
+
+# Prepare ratios counts on cases and controls:
 ######################
 cases <- fread("/home/gerard/AAA/ASE/Cases_Counts.txt")
 cases <- cases %>% remove_rownames %>% column_to_rownames(var="V1")
-cases <- cases[,1:6]
 
 controls <- fread("/home/gerard/AAA/ASE/Controls_Counts.txt")
 controls <- controls %>% remove_rownames %>% column_to_rownames(var="V1")
-controls <- controls[,1:6]
 
 common <- intersect(names(cases),names(controls))
 
@@ -245,7 +303,8 @@ aCount_cols <- grep("_aCount", colnames(cases))
 # Extract gene names from column names:
 gene_names <- sub("_aCount", "", colnames(cases)[aCount_cols])
 
-# Loop through each gene and calculate the sum of counts for cases:
+# Loop through each gene and calculate the total counts for CASES:
+
 for (gene in gene_names) {
   # Select columns for aCount and bCount for the current gene:
   aCount_col <- paste(gene, "_aCount", sep = "")
@@ -262,8 +321,10 @@ cases <- cases[,order(names(cases))]
 cases <- cases[, -grep("bCount", colnames(cases))]
 
 
+# Calculate ratio between aCount and totalCount for CASES:
+
 for (gene in gene_names) {
-  # Select columns for aCount and totalCount for the current gene
+  # Select columns for aCount and totalCount for the current gene:
   aCount_col <- paste(gene, "_aCount", sep = "")
   totalCount_col <- paste(gene, "_totalCount", sep = "")
   
@@ -279,12 +340,13 @@ cases <- cases[, -grep("aCount", colnames(cases))]
 cases <- cases[, -grep("totalCount", colnames(cases))]
 colnames(cases) <- gsub("_ratio","",colnames(cases))
 
-fwrite(cases, "/home/gerard/AAA/ASE/Cases_ratio.txt", sep = "\t")
+#fwrite(cases, "/home/gerard/AAA/ASE/Cases_ratio.txt", sep = "\t", row.names = TRUE)
 
 
 
 
-# Loop through each gene and calculate the sum of counts for controls:
+# Loop through each gene and calculate the sum of counts for CONTROLS:
+
 for (gene in gene_names) {
   # Select columns for aCount and bCount for the current gene
   aCount_col <- paste(gene, "_aCount", sep = "")
@@ -299,6 +361,9 @@ for (gene in gene_names) {
 
 controls <- controls[,order(names(controls))]
 controls <- controls[, -grep("bCount", colnames(controls))]
+
+
+# Calculate ratio between aCount and totalCount for CONTROLS:
 
 for (gene in gene_names) {
   # Select columns for aCount and totalCount for the current gene
@@ -317,11 +382,18 @@ controls <- controls[, -grep("aCount", colnames(controls))]
 controls <- controls[, -grep("totalCount", colnames(controls))]
 colnames(controls) <- gsub("_ratio","",colnames(controls))
 
-#fwrite(controls, "/home/gerard/AAA/ASE/Controls_ratio.txt", sep = "\t")
+#fwrite(controls, "/home/gerard/AAA/ASE/Controls_ratio.txt", sep = "\t", row.names = TRUE)
+######################
 
 
+
+# Compare ratios between cases and controls and save results from Wilcoxon non-parametric test:
+######################
 cases <- fread("/home/gerard/AAA/ASE/Cases_ratio.txt")
+cases <- cases %>% remove_rownames %>% column_to_rownames(var="V1")
+
 controls <- fread("/home/gerard/AAA/ASE/Controls_ratio.txt")
+controls <- controls %>% remove_rownames %>% column_to_rownames(var="V1")
 
 # Get the list of column names (genes)
 gene_names <- colnames(cases)
@@ -342,20 +414,37 @@ for (gene in gene_names) {
   wilcoxon_results[[gene]] <- wilcox_result
 }
 
-
 p_values <- unlist(wilcoxon_results)
-p_values[is.na(p_values)] <- 1
+p_values[is.na(p_values)] <- 1 # Set p-values equal to NA to 1.
 
-adjusted_p_values <- p.adjust(p_values, method = "fdr")
 
-significant_genes <- gene_names[adjusted_p_values < 0.05]
+p_values <- data.frame(p_values)
+p_values$Gene_ID <- rownames(p_values)
+names(p_values) <- c("P.value","Gene")
+p_values <- p_values[,c("Gene","P.value")]
 
-length(significant_genes) # 1815
+p_values$FDR <- p.adjust(p_values$P.value, method = "fdr")
+
+
+# Save results:
+#write.table(p_values, "/home/gerard/AAA/ASE/Pvalues.txt", sep = "\t", col.names = T, quote = F, row.names = F)
+######################
+
+
+
+# Identify significant ASE patterns and perform cluster analysis:
+######################
+p_values <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/ASE/Pvalues.txt")
+head(p_values)
+
+sig.genes <- p_values[p_values$FDR < 0.05]
+
+nrow(sig.genes) # 1815
 
 
 ensembl <- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
 
-ensembl_ids <- substr(significant_genes, 1, 15)
+ensembl_ids <- substr(sig.genes$Gene, 1, 15)
 
 gene_info <- getBM(attributes = c("ensembl_gene_id", "external_gene_name"), 
                    filters = "ensembl_gene_id", 
@@ -386,35 +475,83 @@ go_enrich
 clusters <- findPathClusters(go_enrich@result, cluster = 'hier', minClusterSize = 15)
 clusters$clusters
 ase.clusters <- unique(clusters$clusters$Cluster)
+
+set.seed(28)
+tiff("C://Users/Gerard/Desktop/AAA/RNAseq/ASE/ASE_Cluster4.tiff", height = 3500, width = 3500, res = 250)
+plotPathClusters(
+  enrichment = go_enrich@result,
+  sim = clusters$similarity,
+  clusters = clusters$clusters,
+  fontSize = 10,
+  outerCutoff = 0.1,
+  drawEllipses = TRUE,
+  nodeSize = "Count",
+  colorBy = "pvalue",
+  colorType = 'pval',
+  repelLabels = TRUE
+)
+dev.off()
+######################
+
+
+
+# Load allelic counts:
+######################
+alelic.counts.files <- list.files("/home/gerard/AAA/ASE/Results/", pattern = "allelic_counts.txt", full.names = T, recursive = T)
+alelic.counts <- c()
+
+for (i in 1:length(alelic.counts.files)) {
+  ff <- fread(alelic.counts.files[i])
+  ff$Table <- i
+  ff2 <- subset(ff, ff$totalCount >= 8)
+  alelic.counts <- rbind(alelic.counts, ff2)
+}
+
+# Perform a binomial test for deviation from 0.5:
+alelic.counts$binom_p <- apply(alelic.counts[,c("refCount","altCount")], 1, function(x) binom.test(x[1],x[1]+x[2],p=0.5)$p.value)
+
+# Perform multiple testing correction with FDR for the 12 individuals:
+alelic.counts$binom_q <- p.adjust(alelic.counts$binom_p, method = "fdr")
+######################
+
+
+
+# Load gene counts:
+######################
+# Concatenate all files:
+gene.counts.files <- list.files("/home/gerard/AAA/ASE/Results/", pattern = "case_gene_ae.txt", full.names = T, recursive = T)
+gene.counts <- c()
+
+for (i in 1:length(gene.counts.files)) {
+  ff <- fread(gene.counts.files[i])
+  ff$Table <- i
+  ff2 <- subset(ff, ff$totalCount >= 8)
+  gene.counts <- rbind(gene.counts, ff2)
+}
+
+# Perform a binomial test for deviation from 0.5:
+gene.counts$binom_p <- apply(gene.counts[,c("aCount","bCount")], 1, function(x) binom.test(x[1],x[1]+x[2],p=0.5)$p.value)
+
+# Perform multiple testing correction with FDR for the 12 individuals:
+gene.counts$binom_q <- p.adjust(gene.counts$binom_p, method = "fdr")
+######################
+
+
+# Load GWAS summary statistics:
+######################
+# Prepare GWAS summary statistics:
+gwas <- fread("/home/gerard/AAA_MR/AAA_hg38.txt.gz")
+#gwas <- gwas[gwas$'P-value' < 5e-8, ]
+#fwrite(gwas, "/home/gerard/AAA_MR/AAA_hg38_sig.txt.gz", sep = "\t")
+#gwas <- fread("/home/gerard/AAA_MR/AAA_hg38_sig.txt.gz")
 ######################
 
 
 
 
+# Obtain number of ASE genes:
 
-
-
-
-
-
-# Concatenate all files:
-aes <- list.files("C://Users/Gerard/Desktop/AAA/RNAseq/ASE/", pattern = "case_gene_ae.txt", full.names = T)
-over.8 <- c()
-
-for (i in 1:length(aes)) {
-  ff <- fread(aes[i])
-  ff$Table <- i
-  ff2 <- subset(ff, ff$totalCount >= 8)
-  over.8 <- rbind(over.8, ff2)
-}
-
-# Perform a binomial test for deviation from 0.5:
-over.8$binom_p <- apply(over.8[,c("aCount","bCount")], 1, function(x) binom.test(x[1],x[1]+x[2],p=0.5)$p.value)
-
-# Perform multiple testing correction with FDR for the 12 individuals:
-over.8$binom_q <- p.adjust(over.8$binom_p, method = "fdr")
-
-groups <- split(over.8, over.8$Table)
+groups <- split(gene.counts, gene.counts$Table)
 
 sig.rows <- function(df, columna) {
   sum(df[[columna]] < 0.05, na.rm = TRUE)
@@ -424,12 +561,9 @@ sig.rows.table <- sapply(groups, function(df) {
   sig.rows(df, "binom_q")
 })
 
-mean(sig.rows.table)
-
-
+mean(sig.rows.table) # 529.17
 
 # In average, there are 530 genes with allele specific expression in the 12 individuals with genotype information.
-
 
 
 # Study overlap among significant genes between individuals:
@@ -460,10 +594,8 @@ ovs <- table(overlaps)[order(table(overlaps), decreasing = T)][1:20]
 ovs
 
 
-ann <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Annotation/gencode.v26.annotation.fixed.gtf.gz")
+ann <- fread("/home/gerard/AAA/refs/gencode.v26.annotation.fixed.gtf.gz")
 head(ann)
-
-ann[ann$gene_id %in% names(ovs),]
 
 sig.list.name <- c()
 
@@ -474,56 +606,194 @@ for (i in 1:length(sig.list)) {
 
 sig.list.name[[1]]
 
+gene_names <- unlist(lapply(sig.list.name, function(tbl) tbl$gene_name))
+ensembl_names <- unlist(lapply(sig.list.name, function(tbl) tbl$name))
 
+all_genes <- data.frame(Gene_Name = gene_names, Gene_ID = ensembl_names)
+head(all_genes)
 
-all_genes <- unlist(lapply(sig.list.name, function(tbl) tbl$gene_name))
-gene_counts <- table(all_genes)
+gene_counts <- table(all_genes$Gene_Name)
 gene_counts_df <- as.data.frame(gene_counts, stringsAsFactors = FALSE)
 names(gene_counts_df) <- c("Gene_Name", "Occurrences")
+
+all_genes <- unique(all_genes)
+gene_counts_df <- merge(gene_counts_df, all_genes, by = "Gene_Name")
 
 gene_counts_df <- gene_counts_df %>%
   arrange(desc(Occurrences))
 
-
-# We start selecting the genes that appear 5 or more times with ASE in our 12 samples:
-gene_counts_df[gene_counts_df$Occurrences >= 5,]
+head(gene_counts_df)
 
 
+# We select the genes that appear 5 or more times with ASE in our 12 samples:
+
+sel.genes <- gene_counts_df[gene_counts_df$Occurrences >= 5,]
+nrow(sel.genes) # 90
+sel.genes
 
 
-twas <- readxl::read_xls("C://Users/Gerard/Downloads/41588_2023_1510_MOESM4_ESM.xls", sheet = 6, skip = 4)
+# Load eQTLs in blood and artery aorta:
+eqtl.blood <- fread("/home/gerard/Colocalization_Gtex/Signif/Whole_Blood.v8.signif_variant_gene_pairs.txt.gz")
+eqtl.aorta <- fread("/home/gerard/Colocalization_Gtex/Signif/Artery_Aorta.v8.signif_variant_gene_pairs.txt.gz")
+
+eqtl.blood$variant_id <- gsub("_b38", "", eqtl.blood$variant_id)
+eqtl.aorta$variant_id <- gsub("_b38", "", eqtl.aorta$variant_id)
+
+# Compare with genes that have different patterns between AAA cases and GTEx controls:
+p_values <- fread("/home/gerard/AAA/ASE/Pvalues.txt")
+
+sig.ase.genes <- p_values[p_values$FDR < 0.05]
+
+nrow(sig.ase.genes) # 1815
+head(sig.ase.genes)
+
+gene_counts_df[gene_counts_df$Gene_ID %in% intersect(sel.genes$Gene_ID, sig.ase.genes$Gene),] 
+# SNURF gene
+
+
+
+# Compare if genes are also present in the TWAS of AAAgen:
+twas <- readxl::read_xls("/home/gerard/AAA/ASE/AAAgen Supplementary.xls", sheet = 6, skip = 4)
 head(twas)
 
 twas.genes <- twas$Gene_name...2
 
-intersect(twas.genes, gene_counts_df[gene_counts_df$Occurrences >= 6,]$Gene_Name)
+intersect(sel.genes$Gene_Name, twas.genes)
+# THBS2 gene.
+
+
+# Compare if genes are also present in the GWAS of AAAgen:
+gwas.res <- readxl::read_xls("/home/gerard/AAA/ASE/AAAgen Supplementary.xls", sheet = 14, skip = 1)
+head(gwas.res)
+
+intersect(sel.genes$Gene_Name, gwas.res$`Prioritized gene`)
+# SPP1 and THBS2 genes.
+
+
+#########
+# SNURF #
+#########
+
+
+# Extract genetic variants in SNURF genes:
+sig.df <- do.call(rbind, sig.list.name)
+head(sig.df)
+snurf.vars <- unique(unlist(strsplit(as.character(sig.df[sig.df$gene_name %in% "SNURF",]$variants), ",")))
+snurf.vars
+
+# Check variants in allelic counts: We see that chr15_24974365_T_C SNP determines expression in 8 samples.
+alelic.counts[alelic.counts$variantID %in% snurf.vars &
+                alelic.counts$binom_q < 0.05,]
+
+
+sum(alelic.counts[alelic.counts$variantID == "chr15_24974365_T_C",]$refCount)
+sum(alelic.counts[alelic.counts$variantID == "chr15_24974365_T_C",]$altCount)
+# We see that T allele of chr15_24974365_T_C SNP is overexpressed than C allele.
+
+
+# Check variants in GWAS: Not significant locus.
+min(gwas[gwas$chr == 15 & gwas$pos > 24966466 - 500000 & gwas$pos < 24974365 + 500000,]$'P-value')
+gwas[gwas$chr == 15 & gwas$pos == 24974365,]
+
+
+# Chek eQTL:
+eqtl.blood[grep("chr15_24974365", eqtl.blood$variant_id),] # In Blood, eQTL of SNRPN.
+eqtl.aorta[grep("chr15_24974365", eqtl.aorta$variant_id),] # In Artery Aorta, eQTL of lnc-SNRPN-8.
+
+
+
+#########
+# THBS2 #
+#########
+
+thbs.vars <- unique(unlist(strsplit(as.character(sig.df[sig.df$gene_name %in% "THBS2",]$variants), ",")))
+thbs.vars
+
+thbs.counts <- alelic.counts[alelic.counts$variantID %in% thbs.vars &
+                               alelic.counts$binom_q < 0.05, ]
+# There are many variants that determine the expression of THBS2 gene.
+
+thbs.vars.pos <- str_split_fixed(thbs.vars, "_",4)[,2]
+
+# Check gwas:
+thbs.gwas <- gwas[gwas$chr == 6 & gwas$pos %in% thbs.vars.pos & gwas$'P-value' < 5e-8,]
+
+common.positions <- intersect(thbs.counts$position, thbs.gwas$pos)
+
+thbs.counts[thbs.counts$position %in% common.positions,]
+thbs.gwas[thbs.gwas$pos %in% common.positions,]
+
+
+
+# Check eQTL of TopSNP: 6:169177891: # No significant eQTL.
+
+# Check for common SNPs between GWAS and ASE:
+eqtl.blood[grep("chr6_169220665", eqtl.blood$variant_id),] # No significant eQTL.
+eqtl.aorta[grep("chr6_169220665", eqtl.aorta$variant_id),] # eQTL of THBS2 gene.
+
+eqtl.blood[grep("chr6_169222395", eqtl.blood$variant_id),] # No significant eQTL.
+eqtl.aorta[grep("chr6_169222395", eqtl.aorta$variant_id),] # eQTL of THBS2 gene.
+
+
+########
+# SPP1 #
+########
+
+
+# Extract genetic variants in SNURF genes:
+sig.df <- do.call(rbind, sig.list.name)
+head(sig.df)
+spp.vars <- unique(unlist(strsplit(as.character(sig.df[sig.df$gene_name %in% "SPP1",]$variants), ",")))
+spp.vars
+
+spp.counts <- alelic.counts[alelic.counts$variantID %in% spp.vars &
+                               alelic.counts$binom_q < 0.05, ]
+# There are 6 variants that determine the expression of SPP1 gene.
+table(spp.counts$variant)
+
+
+spp.vars.pos <- str_split_fixed(spp.vars, "_",4)[,2]
+
+# Check gwas:
+spp.gwas <- gwas[gwas$chr == 4 & gwas$pos %in% spp.vars.pos & gwas$'P-value' < 5e-8,]
+
+common.positions <- intersect(spp.counts$position, spp.gwas$pos)
+
+spp.counts[spp.counts$position %in% common.positions,]
+spp.gwas[spp.gwas$pos %in% common.positions,]
+
+
+
+# Check eQTL of TopSNP:
+eqtl.blood[grep("chr4_87854008", eqtl.blood$variant_id),] # eQTL of SPP1 and PKD2 genes.
+eqtl.aorta[grep("chr4_87854008", eqtl.aorta$variant_id),] # eQTL of SPP1 gene.
+
+
+
+# Check for common SNPs between GWAS and ASE:
+eqtl.blood[grep("chr6_169220665", eqtl.blood$variant_id),] #
+eqtl.aorta[grep("chr6_169220665", eqtl.aorta$variant_id),] #
 
 
 
 
-# Load significant by diameter:
-size <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Diameter.xlsx")
-size$Gene.Name
 
-column_name <- "gene_name"
-percentage_overlaps <- c()
-overlaps <- c()
 
-for (i in 1:(length(sig.list.name))) {
-  overlap <-
-    intersect(sig.list.name[[i]][[column_name]], size$Gene.Name)
-  overlaps <- c(overlaps, overlap)
-  percentage_overlap <-
-    length(overlap) / length(size$Gene.Name) * 100
-  percentage_overlaps <-
-    c(percentage_overlaps, percentage_overlap)
-}
 
-write.xlsx(table(overlaps)[order(table(overlaps), decreasing = T)], 
-           "C://Users/Gerard/Desktop/AAA/RNAseq/ASE/Overlap_ASE_Diameter.xlsx", sep = "\t", colNames = F)
+# Compare if genes are also DEGs between cases and controls, and by diameter:
+cc <- read.xlsx("/home/gerard/AAA/SigRes/Cases_Controls_No_Smoking.xlsx")
+dia <- read.xlsx("/home/gerard/AAA/SigRes/Diameter.xlsx")
 
-table(overlaps)[order(table(overlaps), decreasing = T)]
-mean(percentage_overlaps)
+
+intersect(sel.genes$Gene_Name, cc$Gene.Name) # 12 genes between selected and case-control.
+intersect(sel.genes$Gene_Name, dia$Gene.Name) # No genes between selected and diameter.
+
+
+
+
+
+
+
 
 
 
