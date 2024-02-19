@@ -46,37 +46,16 @@ dge <- DGEList(counts = counts.tpm)
 # Set "Control" to be the first level:
 AAA <- factor(x = c(rep("Case", 96), rep("Control", 44)),
               levels = c("Control", "Case"))
-
-# Batch and FC are not included because are highly correlated with AAA:
-design <-
-  model.matrix(~ AAA + tec$FC + tec$Lane + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$SEXO + bio$age + bio$Smoking)
-
-colnames(design) <-
-  c("(Intercept)",
-    "AAA",
-    "FC1",
-    "FC2",
-    "Lane1",
-    "Lane2",
-    "GC_Mean",
-    "RIN",
-    "DV200",
-    "Qubit",
-    "Sex",
-    "Age",
-    "Smoking1",
-    "Smoking2")
 ```
 
-### Remove lowely expressed genes using LIMMA:
+### Remove lowely expressed genes using manual filtering:
 
 ```{r}
-keep <- filterByExpr(dge, design)
-
-paste0("We keep ", sum(keep), " genes") # 11,196
-paste0("We remove ", sum(!keep), " genes") # 16,094
-
+keep <- apply(dge$counts, 1, function(x) sum(x > 0.5) >= 70)
 dge <- dge[keep,,keep.lib.sizes=FALSE]
+
+paste0("We keep ", sum(keep), " genes") # 14,675
+paste0("We remove ", sum(!keep), " genes") # 12,615
 ```
 
 ### Apply quantile normalization to counts:
@@ -88,53 +67,19 @@ counts.tpm <- as.data.frame(normalize.quantiles(as.matrix(dge$counts), keep.name
 ### Manual Differential Expression:
 
 ```{r}
-Pvalue_Past <-
+Pvalue <-
   apply(counts.tpm, 1, function(x)
     summary(
       lm(
-        x ~ bio$Smoking + tec$FC + tec$Lane + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age + bio$SEXO
+        x ~ tec$Case + tec$FC + tec$Lane + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age + bio$SEXO + bio$Smoking
       )
-    )[4][[1]][2,4])
+    )[4][[1]][2, 4])
 
-
-Pvalue_Current <-
+Coef <-
   apply(counts.tpm, 1, function(x)
     summary(
       lm(
-        x ~ bio$Smoking + tec$FC + tec$Lane + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age + bio$SEXO
-      )
-    )[4][[1]][3,4])
-
-Pvalue_Smoking <-
-  apply(counts.tpm, 1, function(x)
-    summary(
-      lm(
-        x ~ bio$Smoking2 + tec$FC + tec$Lane + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age + bio$SEXO
-        )
-    )[4][[1]][2,4])
-
-
-Coef_Past <-
-  apply(counts.tpm, 1, function(x)
-    summary(
-      lm(
-        x ~ bio$Smoking + tec$FC + tec$Lane + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age + bio$SEXO + bio$Smoking
-      )
-    )[4][[1]][2, 1])
-
-Coef_Current <-
-  apply(counts.tpm, 1, function(x)
-    summary(
-      lm(
-        x ~ bio$Smoking + tec$FC + tec$Lane + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age + bio$SEXO + bio$Smoking
-      )
-    )[4][[1]][3, 1])
-
-Coef_Smoking <-
-  apply(counts.tpm, 1, function(x)
-    summary(
-      lm(
-        x ~ bio$Smoking + tec$FC + tec$Lane + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age + bio$SEXO + bio$Smoking2
+        x ~ tec$Case + tec$FC + tec$Lane + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age + bio$SEXO + bio$Smoking
       )
     )[4][[1]][2, 1])
 ```
@@ -147,17 +92,17 @@ Coef_Smoking <-
 #hist(Pvalue, main = "", cex.main = 2)
 #dev.off()
 
-hist(Pvalue_Past, main = "Past Smokers", cex.main = 2)
-hist(Pvalue_Current, main = "Current Smokers", cex.main = 2)
-hist(Pvalue_Smoking, main = "Ever Smokers vs Never Smokers", cex.main = 2)
+hist(Pvalue, cex.main = 2)
+#hist(Pvalue_Current, main = "Current Smokers", cex.main = 2)
+#hist(Pvalue_Smoking, main = "Ever Smokers vs Never Smokers", cex.main = 2)
 ```
 
 ### Create qvalue object:
 
 ```{r}
-qobj_Past <- qvalue(p = Pvalue_Past)
-qobj_Current <- qvalue(p = Pvalue_Current)
-qobj_Smoking <- qvalue(p = Pvalue_Smoking)
+qobj <- qvalue(p = Pvalue)
+#qobj_Current <- qvalue(p = Pvalue_Current)
+#qobj_Smoking <- qvalue(p = Pvalue_Smoking)
 ```
 
 
@@ -165,20 +110,20 @@ qobj_Smoking <- qvalue(p = Pvalue_Smoking)
 
 ```{r}
 Results_Smoking <- data.frame(
-  pvalue = Pvalue_Smoking,
-  qvalue = qobj_Smoking$qvalues,
-  fdr = p.adjust(Pvalue_Smoking, method = "fdr"),
-  pi1 = 1-qobj_Smoking$pi0,
-  Beta = Coef_Smoking
+  pvalue = Pvalue,
+  qvalue = qobj$qvalues,
+  fdr = p.adjust(Pvalue, method = "fdr"),
+  pi1 = 1-qobj$pi0,
+  Beta = Coef
 )
 
 Results_Smoking <- merge(Results_Smoking, ann[,c("gene_id","gene_name")], by.x = 0, by.y = "gene_id")
-Results_Smoking <- Results_Smoking[,-1]
+names(Results_Smoking)[names(Results_Smoking) == "Row.names"] <- "gene_id"
 Results_Smoking <- Results_Smoking[!duplicated(Results_Smoking$gene_name),]
 Results_Smoking <- Results_Smoking %>% remove_rownames %>% column_to_rownames(var="gene_name")
 Results_Smoking <- Results_Smoking[order(Results_Smoking$pvalue),]
 
-nrow(Results_Smoking[Results_Smoking$fdr < 0.05,]) # 201.
+nrow(Results_Smoking[Results_Smoking$fdr < 0.05,]) # 6372
 
 #fwrite(Results_Smoking[Results_Smoking$fdr < 0.05,], "C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Smoking.txt", sep = "\t", row.names = T)
 ```
@@ -230,8 +175,45 @@ nrow(Results_Current[Results_Current$fdr < 0.05,]) # 0.
 ```
 
 
+### DEG:
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+library(clusterProfiler);library(org.Hs.eg.db);library(enrichplot);library(ggplot2);library(enrichplot);library("ggupset");library(ggtree);library(aPEAR)
+```
 
 
+```{r}
+gene_list <- substr(Results_Smoking[Results_Smoking$fdr < 0.05,]$gene_id, 1, 15)
+
+entrez_ids <- bitr(gene_list, fromType = "ENSEMBL", toType = "ENTREZID", OrgDb = org.Hs.eg.db)
+
+# GO enrichment analysis:
+go_enrich <- enrichGO(gene          = entrez_ids$ENTREZID,
+                      OrgDb         = org.Hs.eg.db,
+                      keyType       = "ENTREZID",
+                      ont           = "ALL", # Choose from "BP" (Biological Process), "CC" (Cellular Component), or "MF" (Molecular Function)
+                      pAdjustMethod = "BH",
+                      pvalueCutoff  = 0.05,
+                      qvalueCutoff  = 0.2,
+                      readable = T)
+```
+
+
+
+### Save results:
+
+```{r}
+#write.xlsx(go_enrich@result, "C://Users/Gerard/Desktop/AAA/RNAseq/Supplementary_Tables/GO_Enrich.xlsx")
+```
+
+
+
+
+```{r}
+clusters <- findPathClusters(go_enrich@result, cluster = 'hier', minClusterSize = 15)
+clusters$clusters
+smoking.clusters <- unique(clusters$clusters$Cluster)
+```
 
 
 
