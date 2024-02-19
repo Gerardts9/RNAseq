@@ -11,11 +11,10 @@ cc <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Cases_Controls_No_Sm
 cc_no_it <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Cases_Controls_No_Smoking_No_IT.xlsx")
 dia <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Diameter.xlsx")
 sym <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Symptoms.xlsx")
+type <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Type.xlsx")
 
 length(unique(c(dia$Gene.Name, sym$Gene.Name)))
-
 length(intersect(cc$Gene.Name, dia$Gene.Name))
-
 intersect(c(dia$Gene.Name,sym$Gene.Name), cc$Gene.Name)
 
 
@@ -64,23 +63,32 @@ venn.plot <- venn.diagram(
 ########################################
 v <- venn.diagram(
   x = list(A = dia$Gene.Name, B = cc$Gene.Name),
+  disable.logging = T,
   category.names = c("Diameter", "Status"),
   fill = c("yellow", "red"),
-  alpha = 0.5,
+  alpha = 0.2,
   filename = NULL,
-  scale = FALSE,
-  cat.pos = -5
+  scaled = FALSE,
+  cat.pos = c(-1, 1), 
+  cex = 2,
+  cat.cex = 2
 )
+
 
 lapply(v, function(i) i$label)
 
 # Intersection:
-v[[7]]$label <- paste(intersect(cc$Gene.Name, dia$Gene.Name), collapse="\n")  
+v[[7]]$label <- paste(intersect(cc$Gene.Name, dia$Gene.Name), collapse="\n")
+
+v[[7]]$label <- substitute(paste(italic("EXTL3")),
+                           paste(italic("EXTL3")))
+
 
 # Plot:
 grid.newpage()
 grid.draw(v)
 ########################################
+
 
 # Status vs Symptoms:
 ########################################
@@ -164,19 +172,22 @@ grid.draw(v)
 
 # Splicing vs Status:
 ########################################
-v <- venn.diagram(
-  x = list(A = alt$gene_name, B = cc_no_it$Gene.Name),
+v <- venn.diagram(sub.cex = 10,
+  x = list(A = alt$gene_name, B = cc$Gene.Name),
+  disable.logging = T,
   category.names = c("Splicing", "Status"),
-  fill = c("blue", "red"),
-  alpha = 0.5,
+  fill = c("cornflowerblue", "red"),
+  alpha = 0.2,
   filename = NULL,
-  cat.pos = c(-1, 1), scaled = F
+  cat.pos = c(-1, 1), 
+  scaled = F,
+  cex = 2,
+  cat.cex = 2
 )
 
 lapply(v, function(i) i$label)
 
 intersect(alt$gene_name, cc$Gene.Name)
-intersect(alt$gene_name, cc_no_it$Gene.Name)
 
 
 v[[6]]$label <- paste(setdiff(alt$gene_name, cc$Gene.Name), collapse="\n")  
