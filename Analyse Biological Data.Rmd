@@ -4,6 +4,10 @@ author: "Gerard Temprano Sagrera"
 date: "2023-10-17"
 output: html_document
 ---
+```{r}
+library(openxlsx)
+```
+
 
 ```{r}
 ### Load Biological data:
