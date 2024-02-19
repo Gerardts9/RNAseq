@@ -42,6 +42,8 @@ table(bio[bio$Status == "Case",]$SEXO)
 
 table(bio[bio$Status == "Control",]$SEXO)
 
+head(bio)
+table(bio$TIPOANEURISMA, useNA="always")
 
 # Smoking:
 bio$Smoking2 <- ifelse(bio$Smoking == 0, 0, 1)
@@ -119,11 +121,11 @@ Coef <-
 ### Plot P-values:
 
 ```{r}
-#png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Results/Hist_Cases_vs_Controls.png", height = 10000, width = 10000, res = 1200)
-#hist(Pvalue, main = "Cases vs Controls", cex.main = 2)
-#dev.off()
+png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Results/Hist_Cases_vs_Controls.png", height = 10000, width = 10000, res = 1200)
+hist(Pvalue, main = "", cex.main = 2)
+dev.off()
 
-hist(Pvalue, main = "Cases vs Controls", cex.main = 2)
+hist(Pvalue, main = "", cex.main = 2)
 ```
 
 ### Create qvalue object:
@@ -194,7 +196,7 @@ go_enrich <- enrichGO(gene          = entrez_ids$ENTREZID,
 ### Save results:
 
 ```{r}
-write.xlsx(go_enrich@result, "C://Users/Gerard/Desktop/AAA/RNAseq/Supplementary_Tables/GO_Enrich.xlsx")
+#write.xlsx(go_enrich@result, "C://Users/Gerard/Desktop/AAA/RNAseq/Supplementary_Tables/GO_Enrich.xlsx")
 ```
 
 
@@ -272,7 +274,7 @@ p3 <- cnetplot(edox, foldChange=entrez_ids$ENTREZID, circular = TRUE, colorEdge 
 
 
 ```{r}
-png("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Enrichment/CnetPlot.png", height = 2500, width = 2500)
+png("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Enrichment/CnetPlot2.png", height = 8000, width = 8000, res = 300)
 p3
 dev.off()
 ```
@@ -285,7 +287,7 @@ p2 <- treeplot(edox2, showCategory = 200, nCluster = 5)
 ```
 
 ```{r}
-png("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Enrichment/TreePlot_All.png", height = 2000, width = 2000)
+png("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Enrichment/TreePlot_All2.png", height = 6000, width = 6000, res = 300)
 p2
 dev.off()
 ```
@@ -324,6 +326,25 @@ nrow(Results_No_IT)
 
 #write.xlsx(Results[Results$fdr < 0.05,], "C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Cases_Controls_No_Smoking_No_IT.xlsx", sep = "\t", rowNames = T)
 ```
+
+
+### Plot P-values:
+
+```{r}
+png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Results/Hist_Cases_vs_Controls_NoIT.png", height = 10000, width = 10000, res = 1200)
+hist(Results_No_IT$pvalue, main = "", xlab = "Pvalue")
+dev.off()
+
+hist(Results_No_IT$pvalue, main = "", xlab = "Pvalue")
+```
+
+
+```{r}
+qobj <- qvalue(p = Results_No_IT$pvalue)
+
+1-qobj$pi0
+```
+
 
 
 ```{r}
