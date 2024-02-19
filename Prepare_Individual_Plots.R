@@ -94,7 +94,7 @@ dim(controls.tpm)
 
 table(AAA)
 
-glist <- c("LAMA2", "SPP1")
+glist <- c("THBS1","THBS2","THBS3")
 
 
 for (gene in glist) {
@@ -159,7 +159,7 @@ Pvalue <-
   apply(counts.tpm, 1, function(x)
     summary(
       lm(
-        x ~ bio$aortc_diameter_mm + tec$Date + tec$Batch + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age
+        x ~ bio$aortc_diameter_mm + tec$Date + tec$Batch + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age + bio$SEXO
       )
     )[4][[1]][2, 4])
 
@@ -167,7 +167,7 @@ Coef <-
   apply(counts.tpm, 1, function(x)
     summary(
       lm(
-        x ~ bio$aortc_diameter_mm + tec$Date + tec$Batch + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age
+        x ~ bio$aortc_diameter_mm + tec$Date + tec$Batch + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age + bio$SEXO
       )
     )[4][[1]][2, 1])
 
@@ -187,7 +187,7 @@ Results <- Results[!duplicated(Results$gene_name),]
 Results <- Results %>% remove_rownames %>% column_to_rownames(var="gene_name")
 Results <- Results[order(Results$pvalue),]
 
-nrow(Results[Results$fdr < 0.05,]) # 42
+nrow(Results[Results$fdr < 0.05,]) # 32
 
 
 counts <- merge(counts.tpm, ann[,c("gene_id","gene_name")], by.x = 0, by.y = "gene_id")
@@ -197,19 +197,24 @@ counts <- counts %>% remove_rownames %>% column_to_rownames(var="gene_name")
 
 counts <- as.matrix(counts)
 
-
 dia <- bio[!is.na(bio$aortc_diameter_mm),][,c("Muestra","aortc_diameter_mm")]
 
 counts <- counts[,colnames(counts) %in% dia$Muestra]
 tec2 <- tec[tec$SampleID %in% colnames(counts),]
 bio2 <- bio[bio$Muestra %in% colnames(counts),]
 
+head(counts)
+
 dia <- dia %>% remove_rownames %>% column_to_rownames(var="Muestra")
 
-glist <- c("LAMA2", "SPP1")
+glist <- c("ACKR2")
+
+#table(res$TIPOANEURISMA)
+#mean(res[res$TIPOANEURISMA == 1,]$Expression)
+#mean(res[res$TIPOANEURISMA == 2,]$Expression)
 
 for (gene in glist) {
-  res <- resid(lm(counts[gene,] ~ tec2$Date + tec2$Batch + tec2$GC_Mean + tec2$RIN + tec2$DV200 + tec2$Qubit + bio2$age))
+  res <- resid(lm(counts[gene,] ~ tec2$Date + tec2$Batch + tec2$GC_Mean + tec2$RIN + tec2$DV200 + tec2$Qubit + bio2$age + bio2$SEXO))
   res <- data.frame(Expression = res,
                     Diameter = dia)
 
