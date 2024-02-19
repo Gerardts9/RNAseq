@@ -20,6 +20,8 @@ bio2 <- bio[,c("Status","SEXO","age","TIPOANEURISMA","symptomatic","Height_cm","
                 "aortc_diameter_mm")]
 
 names(bio2) <- c("STATUS","SEX","AGE","TYPE","SYMPTOMS","HEIGHT","WEIGHT","SMOKING","O.ANEURYSM","DIAMETER")
+
+bio2[bio2$STATUS == "Case",]$STATUS <- "AAA"
 ```
 
 - Type of aneurysm, height, weight, other aneurysm and size are only available for cases.
@@ -30,8 +32,10 @@ names(bio2) <- c("STATUS","SEX","AGE","TYPE","SYMPTOMS","HEIGHT","WEIGHT","SMOKI
 (tab <- as.data.frame(prop.table(table(bio2$STATUS, bio2$SEX), margin = 1)))
 sum(!is.na(bio$SEXO))
 
-ggplot(tab, aes(x = Var1, y = Freq, fill=Var2)) + geom_col() + labs(x = "Status", fill = "Sex") +
+ggplot(tab, aes(x = Var1, y = Freq, fill=Var2)) + geom_col() + labs(x = "STATUS", fill = "Sex") +
    scale_fill_discrete(breaks = c(1,2), labels = c("Male","Female"))
+
+ggsave("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/SuppFig3/Status_Sex.png")
 ```
 
 - Status with Age: Cases are older.
@@ -42,8 +46,11 @@ sum(!is.na(bio2$AGE))
 
 ggboxplot(bio2, x = "STATUS", y = "AGE") +
   geom_boxplot(aes(fill = factor(STATUS)), outlier.shape = " ") +
+  geom_point(position = position_jitter(width = 0.2), color = "black", size = 2, alpha = 0.5) +
   stat_compare_means(method = "t.test", label.y = 100, label.x = 1.5) +
   theme(legend.position = "none")
+
+ggsave("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/SuppFig3/Status_Age.png")
 ```
 
 
@@ -55,8 +62,10 @@ sum(!is.na(bio2$SMOKING))
 
 tab <- as.data.frame(prop.table(table(bio2$STATUS, bio2$SMOKING), margin = 1))
 
-ggplot(tab, aes(x = Var1, y = Freq, fill=Var2)) + geom_col() + labs(x = "Status", fill = "Smoking") +
+ggplot(tab, aes(x = Var1, y = Freq, fill=Var2)) + geom_col() + labs(x = "STATUS", fill = "Smoking") +
   scale_fill_discrete(breaks = c(0,1,2), labels = c("Never","Past","Currently"))
+
+ggsave("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/SuppFig3/Status_Smoking.png")
 ```
 
 
@@ -76,6 +85,8 @@ tab <- as.data.frame(prop.table(table(bio.cases$TYPE, bio.cases$SYMPTOMS), margi
 ggplot(tab, aes(x = Var1, y = Freq, fill=Var2)) + geom_col() + labs(x = "Type", fill = "Symptoms") +
   scale_x_discrete(breaks = c("1","2"), labels = c("Atherosclerotic","Inflammatory")) +
   scale_fill_discrete(breaks = c("0","1"), labels = c("No", "Yes"))
+
+ggsave("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/SuppFig3/Symptoms_Type.png")
 ```
 
 
@@ -87,37 +98,15 @@ table(bio.cases$TYPE)
 
 tab <- as.data.frame(prop.table(table(bio.cases$TYPE, bio.cases$DIAMETER), margin = 1))
 
-ggboxplot(subset(bio.cases, !is.na(TYPE)), x = "TYPE", y = "DIAMETER") +
-  geom_boxplot(aes(fill = factor(TYPE)), outlier.shape = " ") +  # Modify this line
-  stat_compare_means(method = "t.test", label.y = 110, label.x = 1.4) +
-  scale_x_discrete(breaks = c(1,2), labels = c("Atherosclerotic","Inflammatory")) +
-  theme(legend.position = "none")
-```
-
-
-
-```{r}
 ggboxplot(subset(bio.cases, !is.na(TYPE)), x = "TYPE", y = "DIAMETER", outlier.shape = NA) +
   geom_boxplot(aes(fill = factor(TYPE)), outlier.shape = NA) +
   geom_point(position = position_jitter(width = 0.2), color = "black", size = 2, alpha = 0.5) +
   stat_compare_means(method = "t.test", label.y = 110, label.x = 1.4) +
   scale_x_discrete(breaks = c(1, 2), labels = c("Atherosclerotic", "Inflammatory")) +
   theme(legend.position = "none")
+
+ggsave("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/SuppFig3/Type_Diameter.png")
 ```
-
-```{r}
-ggboxplot(subset(bio.cases, !is.na(TYPE)), x = "TYPE", y = "DIAMETER") +
-  geom_boxplot(aes(fill=factor(TYPE))) +
-  geom_jitter(width = 0.3, size = 2, alpha = 0.7) +
-  stat_compare_means(method = "t.test", label.y = 110, label.x = 1.4) +
-  scale_x_discrete(breaks = c(1,2), labels = c("Atherosclerotic","Inflammatory")) +
-  theme(legend.position = "none")
-```
-
-
-
-
-
 
 
 - Symptoms with Diameter: Symptomatic aneurysms are bigger.
@@ -131,6 +120,8 @@ geom_boxplot(aes(fill = SYMPTOMS), outlier.shape = NA) +
   stat_compare_means(method = "t.test", label.y = 110, label.x = 1.3) +
   scale_x_discrete(breaks = c(0,1), labels = c("Asymptomatic","Symptomatic")) +
   theme(legend.position = "none")
+
+ggsave("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/SuppFig3/Symptoms_Diameter.png")
 ```
 
 
@@ -143,6 +134,8 @@ tab <- as.data.frame(prop.table(table(bio.cases$SYMPTOMS, bio.cases$SMOKING)))
 ggplot(tab, aes(x = Var1, y = Freq, fill=Var2)) + geom_col() + labs(x = "Smoking Status", fill = "Symptoms") +
   scale_x_discrete(breaks = c("0","1"), labels = c("Asymptomatic","Symptomatic")) +
   scale_fill_discrete(breaks = c("0","1","2"),labels = c("Never", "Past", "Present"))
+
+ggsave("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/SuppFig3/Symptoms_Smoking.png")
 ```
 
 
@@ -153,9 +146,12 @@ sum(!is.na(bio.cases$AGE) & !is.na(bio.cases$TYPE))
 
 ggboxplot(subset(bio.cases, !is.na(TYPE)), x = "TYPE", y = "AGE") +
 geom_boxplot(aes(fill = TYPE)) +
+  geom_point(position = position_jitter(width=0.2), color = "black", size = 2, alpha = 0.5) +
   stat_compare_means(method = "t.test", label.y = 110, label.x = 1.3) +
   scale_x_discrete(breaks = c(1,2), labels = c("Inflammatory","Atherosclerotic")) +
   theme(legend.position = "none")
+
+#ggsave("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/SuppFig3/Age_Type.png")
 ```
 
 
@@ -166,6 +162,7 @@ sum(!is.na(bio.cases$WEIGHT) & !is.na(bio.cases$TYPE))
 
 ggboxplot(subset(bio.cases, !is.na(TYPE) & !is.na(WEIGHT)), x = "TYPE", y = "WEIGHT") +
 geom_boxplot(aes(fill = TYPE)) +
+    geom_point(position = position_jitter(width=0.2), color = "black", size = 2, alpha = 0.5) +
   stat_compare_means(method = "t.test", label.y = 110, label.x = 1.3) +
   scale_x_discrete(breaks = c(1,2), labels = c("Inflammatory","Atherosclerotic")) +
   theme(legend.position = "none")
