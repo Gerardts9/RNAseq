@@ -4,12 +4,14 @@ res <- read.table("C://Users/Gerard/Desktop/AAA/RNAseq/SUPPA/AAA_Results.dpsi")
 res <- res[order(res$AAA_Cases.AAA_Controls_p.val),]
 res <- na.omit(res)
 
-HMGN1 <- res[grep("ENSG00000205581", rownames(res)),]
-
+res[res$AAA_Cases.AAA_Controls_p.val == 0,]$AAA_Cases.AAA_Controls_p.val <- 5e-10
 res$BH <- p.adjust(res$AAA_Cases.AAA_Controls_p.val, method = "fdr")
 
 nrow(res[res$AAA_Cases.AAA_Controls_p.val < 0.05,])
 nrow(res[res$BH < 0.05,])
+
+# Save supplementary table:
+#write.xlsx(res, "C://Users/Gerard/Desktop/AAA/RNAseq/Supplementary_Tables/SUPPA.Results.xlsx")
 
 # Nominally significant genes:
 res.sig <- res[res$AAA_Cases.AAA_Controls_p.val < 0.05,]
