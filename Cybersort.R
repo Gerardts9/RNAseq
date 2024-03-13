@@ -1,6 +1,5 @@
 library(data.table);library(edgeR);library(tidyverse);library(openxlsx);library(preprocessCore);library("org.Hs.eg.db");library(stats);library(qvalue);library(ggpubr);library(VennDiagram)
-library(readxl)
-library(tidyr)
+library(readxl);library(tidyr)
 
 lm22 <- data.frame(read_xls("C://Users/Gerard/Downloads/41592_2015_BFnmeth3337_MOESM207_ESM.xls", sheet = 1, skip = 13))
 
@@ -129,6 +128,13 @@ t.test_results <- df.m %>%
 
 t.test_results[t.test_results$p_value < 0.05/22,]
 
+t.test_results$p_value <- as.character(round(t.test_results$p_value, 4))
+
+t.test_results[t.test_results$variable %in% "Dendritic cells activated",]$p_value <- "3.17e-5"
+t.test_results[t.test_results$variable %in% "T cells CD8",]$p_value <- "3.83e-4"
+
+t.test_results$p_value
+
 # CD8 T-cells. HIGHER IN CASES.
 # NK resting cells. HIGHER IN CONTROLS.
 # Dendritic activated cells. HIGHER IN CONTROLS.
@@ -150,12 +156,13 @@ ggplot(df.m, aes(x = group, y = value)) +
   geom_text(
     data = t.test_results,
     aes(x = 1, y = max(df.m$value), 
-        label = paste("p-value =", round(p_value, digits = 4))),
+        label = paste("p-value =", p_value)),
     hjust = 0, vjust = 1
   )
 
 
 df.m <- left_join(df.m, t.test_results, by = "variable")
+
 
 ggplot(df.m, aes(x = group, y = value, fill = group)) +
   geom_boxplot() +
@@ -166,9 +173,10 @@ ggplot(df.m, aes(x = group, y = value, fill = group)) +
   geom_text(
     data = df.m,
     aes(x = 1, y = max(value), 
-        label = paste("p-value =", round(p_value, digits = 4))),
+        label = paste("p-value =", p_value)),
     hjust = 0, vjust = 1
   )
+
 
 ggsave("C://Users/Gerard/Desktop/AAA/RNAseq/Cibersort/Plot.png", width = 16, height = 14)
 
