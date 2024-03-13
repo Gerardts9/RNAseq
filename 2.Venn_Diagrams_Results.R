@@ -38,7 +38,6 @@ venn.plot <- venn.diagram(
   fill = c("red", "green", "blue"),
   alpha = 0.5)
 
-
 # CaseControl vs Media
 
 venn.plot <- venn.diagram(
@@ -172,7 +171,7 @@ grid.draw(v)
 
 # Splicing vs Status:
 ########################################
-v <- venn.diagram(sub.cex = 10,
+v.splicing <- venn.diagram(sub.cex = 10,
   x = list(A = alt$gene_name, B = cc$Gene.Name),
   disable.logging = T,
   category.names = c("Splicing", "Status"),
@@ -185,16 +184,16 @@ v <- venn.diagram(sub.cex = 10,
   cat.cex = 2
 )
 
-lapply(v, function(i) i$label)
+lapply(v.splicing, function(i) i$label)
 
 intersect(alt$gene_name, cc$Gene.Name)
 
 
-v[[6]]$label <- paste(setdiff(alt$gene_name, cc$Gene.Name), collapse="\n")  
-v[[7]]$label <- paste(intersect(alt$gene_name, cc$Gene.Name), collapse="\n")  
+v.splicing[[6]]$label <- paste(setdiff(alt$gene_name, cc$Gene.Name), collapse="\n")  
+v.splicing[[7]]$label <- paste(intersect(alt$gene_name, cc$Gene.Name), collapse="\n")  
 
 grid.newpage()
-grid.draw(v)
+grid.draw(v.splicing)
 ########################################
 
 
