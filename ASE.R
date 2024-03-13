@@ -159,10 +159,10 @@ fwrite(cases_split2, "/home/gerard/AAA/ASE/Cases_Counts.txt", sep = "\t", row.na
 
 # Clustering with GTEx controls data:
 ######################
-cases <- as.data.frame(fread("/home/gerard/AAA/ASE/Cases_ratio.txt"))
+cases <- as.data.frame(fread("C://Users/Gerard/Desktop/AAA/ASE/Cases_ratio.txt"))
 cases <- cases %>% remove_rownames %>% column_to_rownames(var="V1")
 
-controls <- as.data.frame(fread("/home/gerard/AAA/ASE/Controls_ratio.txt"))
+controls <- as.data.frame(fread("C://Users/Gerard/Desktop/AAA/ASE/Controls_ratio.txt"))
 controls <- controls %>% remove_rownames %>% column_to_rownames(var="V1")
 
 common <- intersect(names(cases),names(controls))
@@ -182,27 +182,26 @@ my_pca <- prcomp(all, center = T)
 summaryPca <- summary(my_pca)
 
 
-png("/home/gerard/AAA/ASE/Plots/cumsum.png")
-plot(cumsum(my_pca$sdev^2 / sum(my_pca$sdev^2))[1:10], type="b", ylab = "Cummulative proportion of Variance Explained")
-dev.off()
+#png("/home/gerard/AAA/ASE/Plots/cumsum.png")
+#plot(cumsum(my_pca$sdev^2 / sum(my_pca$sdev^2))[1:10], type="b", ylab = "Cummulative proportion of Variance Explained")
+#dev.off()
 
-png(file = "/home/gerard/AAA/ASE/Plots/Scree_plot.png")
-fviz_eig(my_pca)
-dev.off()
+#png(file = "/home/gerard/AAA/ASE/Plots/Scree_plot.png")
+#fviz_eig(my_pca)
+#dev.off()
 
 
-png(file = "/home/gerard/AAA/ASE/Plots/Individuals_plot.png", width = 1500, height = 1500, res = 200)
+#png(file = "/home/gerard/AAA/ASE/Plots/Individuals_plot.png", width = 1500, height = 1500, res = 200)
 fviz_pca_ind(
   my_pca,
   habillage = aaa,
   palette = c("#00AFBB", "#FC4E07"),
   repel = TRUE,
   addEllipses = TRUE,
-  # Add ellipses
   ellipse.level = 0.95,
-  geom="point"
-)
-dev.off()
+  geom="point",
+) + labs(title="")
+#dev.off()
 
 
 
@@ -441,7 +440,6 @@ sig.genes <- p_values[p_values$FDR < 0.05]
 
 nrow(sig.genes) # 1815
 
-
 ensembl <- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
 
 ensembl_ids <- substr(sig.genes$Gene, 1, 15)
@@ -476,13 +474,13 @@ clusters <- findPathClusters(go_enrich@result, cluster = 'hier', minClusterSize 
 clusters$clusters
 ase.clusters <- unique(clusters$clusters$Cluster)
 
-set.seed(28)
-tiff("C://Users/Gerard/Desktop/AAA/RNAseq/ASE/ASE_Cluster4.tiff", height = 3500, width = 3500, res = 250)
+set.seed(30)
+#tiff("C://Users/Gerard/Desktop/AAA/RNAseq/ASE/ASE_Cluster4.tiff", height = 3500, width = 3500, res = 250)
 plotPathClusters(
   enrichment = go_enrich@result,
   sim = clusters$similarity,
   clusters = clusters$clusters,
-  fontSize = 10,
+  fontSize = 8,
   outerCutoff = 0.1,
   drawEllipses = TRUE,
   nodeSize = "Count",
@@ -490,7 +488,7 @@ plotPathClusters(
   colorType = 'pval',
   repelLabels = TRUE
 )
-dev.off()
+#dev.off()
 ######################
 
 
