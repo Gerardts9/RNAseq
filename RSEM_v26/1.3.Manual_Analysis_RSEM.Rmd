@@ -212,7 +212,7 @@ it.clusters <- unique(clusters$clusters$Cluster)
 ```{r}
 set.seed(5)
 
-tiff("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Enrichment/PathCluster_7.tiff", height = 3500, width = 3500, res = 350)
+#tiff("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Enrichment/PathCluster_7.tiff", height = 3500, width = 3500, res = 350)
 plotPathClusters(
   enrichment = go_enrich@result,
   sim = clusters$similarity,
@@ -225,7 +225,7 @@ plotPathClusters(
   colorType = 'pval',
   repelLabels = TRUE
 )
-dev.off()
+#dev.off()
 ```
 
 
@@ -331,9 +331,9 @@ nrow(Results_No_IT)
 ### Plot P-values:
 
 ```{r}
-png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Results/Hist_Cases_vs_Controls_NoIT.png", height = 10000, width = 10000, res = 1200)
-hist(Results_No_IT$pvalue, main = "", xlab = "Pvalue")
-dev.off()
+#png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Results/Hist_Cases_vs_Controls_NoIT.png", height = 10000, width = 10000, res = 1200)
+#hist(Results_No_IT$pvalue, main = "", xlab = "Pvalue")
+#dev.off()
 
 hist(Results_No_IT$pvalue, main = "", xlab = "Pvalue")
 ```
@@ -373,10 +373,10 @@ go_enrich_no_it <- enrichGO(gene    = entrez_ids$ENTREZID,
 
 
 ```{r}
-clusters <- findPathClusters(go_enrich_no_it@result, cluster = 'hier', minClusterSize = 15)
-class(clusters$clusters)
+clusters_no_it <- findPathClusters(go_enrich_no_it@result, cluster = 'hier', minClusterSize = 15)
+class(clusters_no_it$clusters)
 
-no.it.clusters <- unique(clusters$clusters$Cluster)
+no.it.clusters <- unique(clusters_no_it$clusters$Cluster)
 ```
 
 
@@ -386,6 +386,30 @@ no.it.clusters <- unique(clusters$clusters$Cluster)
 ca.paths <- clusters$clusters[clusters$clusters$Cluster %in% "regulation of sequestering of calcium ion",]$Pathway
 
 atp.paths <- clusters$clusters[clusters$clusters$Cluster %in% "ATP synthesis coupled electron transport",]$Pathway
+
+
+clusters_no_it$clusters[clusters_no_it$clusters$Cluster %in% c("regulation of sequestering of calcium ion", "ATP synthesis coupled electron transport"),]
+```
+
+
+```{r}
+#set.seed(4)
+set.seed(4)
+
+tiff("C://Users/Gerard/Desktop/PathCluster_Abstract_4.tiff", height = 2500, width = 2500, res = 350)
+plotPathClusters(d
+  enrichment = go_enrich_no_it@result,
+  sim = clusters_no_it$similarity,
+  clusters = clusters_no_it$clusters,
+  fontSize = 10,
+  outerCutoff = 0.1,
+  drawEllipses = TRUE,
+  nodeSize = "Count",
+  colorBy = "pvalue",
+  colorType = 'pval',
+  repelLabels = TRUE
+)
+dev.off()
 ```
 
 
@@ -411,37 +435,9 @@ all.genes <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/AllGenes.xlsx")
 sum(all.genes[all.genes$Gene.Name %in% names(genes),]$Beta < 0)
 sum(all.genes[all.genes$Gene.Name %in% names(genes),]$Beta > 0)
 
-
-
 new.genes <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/NewGenes.xlsx")
 new.genes[new.genes$Gene.Name %in% names(genes),]
 ```
-
-
-
-
-```{r}
-set.seed(4)
-
-tiff("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Enrichment/PathCluster_No_IT4.tiff", height = 2500, width = 2500, res = 350)
-plotPathClusters(
-  enrichment = go_enrich_no_it@result,
-  sim = clusters$similarity,
-  clusters = clusters$clusters,
-  fontSize = 6,
-  outerCutoff = 0.1,
-  drawEllipses = TRUE,
-  nodeSize = "Count",
-  colorBy = "pvalue",
-  colorType = 'pval',
-  repelLabels = TRUE
-)
-dev.off()
-```
-
-
-
-
 
 # Compare GO enrich results:
 
