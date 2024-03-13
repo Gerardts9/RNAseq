@@ -10,8 +10,14 @@ res$BH <- p.adjust(res$AAA_Cases.AAA_Controls_p.val, method = "fdr")
 nrow(res[res$AAA_Cases.AAA_Controls_p.val < 0.05,])
 nrow(res[res$BH < 0.05,])
 
+rownames(res)
+
 # Save supplementary table:
-#write.xlsx(res, "C://Users/Gerard/Desktop/AAA/RNAseq/Supplementary_Tables/SUPPA.Results.xlsx")
+write.xlsx(res, "C://Users/Gerard/Desktop/AAA/RNAseq/Supplementary_Tables/SUPPA.Results.xlsx", row.names = T)
+
+rownames(res)
+rownames(res.sig)
+rownames(res.sig.BH)
 
 # Nominally significant genes:
 res.sig <- res[res$AAA_Cases.AAA_Controls_p.val < 0.05,]
@@ -30,7 +36,7 @@ table(table(substr(rownames(res),1,15)))[table(table(substr(rownames(res),1,15))
 
 hist(res$AAA_Cases.AAA_Controls_p.val)
 
-event <- sub(".*;(..).*","\\1", rownames(res))
+event <- sub(".*;(..).*","\\1", rownames(res.sig.BH))
 table(event)
 
 event_counts <- table(event)
@@ -47,17 +53,20 @@ ggplot(df, aes(x = "", y = count.Freq, fill = count.event)) +
   geom_bar(stat = "identity", color = "black", size = 0.8) +
   labs(title = "Proportion of splicing events types") +
   coord_polar("y", start = 80) +
-  geom_text(aes(label = paste0(round(count.Freq, 2), '%')), position = position_stack(vjust=0.5)) +
-  scale_fill_brewer(palette="Pastel1", name = "", label = new_labels) +
-  #scale_fill_discrete(labels = new_labels) +
-  theme(axis.text = element_blank(),
-  axis.ticks = element_blank(),
-  axis.title = element_blank(),
-  panel.grid = element_blank(),
-  plot.title = element_text(hjust = 0.5),
-  panel.background = element_blank(),
-  legend.position = "bottom",
-  legend.box.spacing = unit(0, "pt")
+  geom_text(aes(label = paste0(round(count.Freq, 2), '%')), position = position_stack(vjust =
+                                                                                        0.5)) +
+  scale_fill_brewer(palette = "Pastel1",
+                    name = "",
+                    label = new_labels) +
+  theme(
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
+    axis.title = element_blank(),
+    panel.grid = element_blank(),
+    plot.title = element_text(hjust = 0.5),
+    panel.background = element_blank(),
+    legend.position = "bottom",
+    legend.box.spacing = unit(0, "pt")
   )
 
 dev.off()
