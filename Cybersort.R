@@ -96,14 +96,35 @@ sorted_column_mean_cases <- sort(column_mean_cases, decreasing = TRUE)
 top_three_cell_types_cases <- head(sorted_column_mean_cases, n = 3)
 less_three_cell_types_cases <- tail(sorted_column_mean_cases, n = 3)
 
-sum(sorted_column_mean_cases)
 
 column_mean_controls <- 100*apply(df_controls, 2, mean)
+sum(column_mean_controls)
 sorted_column_mean_controls <- sort(column_mean_controls, decreasing = TRUE)
 top_three_cell_types_controls <- head(sorted_column_mean_controls, n = 3)
 less_three_cell_types_controls <- tail(sorted_column_mean_controls, n = 3)
 
-sum(sorted_column_mean_controls)
+
+# Prepare Supplementary Table:
+
+cases <- data.frame(
+  "Inflammatory Cell Type" = names(sorted_column_mean_cases),
+  "% in AAA" = sorted_column_mean_cases,
+  check.names = F
+)
+
+controls <- data.frame(
+  "Inflammatory Cell Type" = names(sorted_column_mean_controls),
+  "% in Controls" = sorted_column_mean_controls,
+  check.names = F
+)
+
+all <- merge(cases, controls, by = "Inflammatory Cell Type")
+head(all)
+
+
+#write.xlsx(all, "C://Users/Gerard/Desktop/AAA/RNAseq/Supplementary_Tables/Additional File 9.xlsx")
+
+
 
 res <- res %>%
   mutate(group = ifelse(row_number() <= 96, "Cases", "Controls"))
@@ -145,7 +166,7 @@ less_three_cell_types_cases
 top_three_cell_types_controls
 less_three_cell_types_controls
 
-top_three_cell_types
+
 
 ggplot(df.m, aes(x = group, y = value)) +
   geom_boxplot() +
@@ -164,44 +185,58 @@ ggplot(df.m, aes(x = group, y = value)) +
 df.m <- left_join(df.m, t.test_results, by = "variable")
 
 
+head(df.m)
+
+df.m.summary <- df.m %>%
+  group_by(variable) %>%
+  summarise(max_value = max(value), p_value = dplyr::first(p_value)) %>%
+  ungroup()
+
+
 ggplot(df.m, aes(x = group, y = value, fill = group)) +
   geom_boxplot() +
   labs(x = "group", y = "Expression Level") +
   theme_bw() +
   theme(legend.position = "none") +
-  facet_wrap(~ variable, scales = "free") +
+  facet_wrap(~ variable, scales = "free_y") +
   geom_text(
-    data = df.m,
-    aes(x = 1, y = max(value), 
-        label = paste("p-value =", p_value)),
-    hjust = 0, vjust = 1
+    data = df.m.summary,
+    aes(x = 1, y = 0.1 + max_value, label = paste("P-value =", p_value)),
+    inherit.aes = FALSE,
+    hjust = 0.1, vjust = 1
+  )
+
+ggsave("C://Users/Gerard/Desktop/JAHA Revision RNAseq/Cibersort_Supp.png",
+       width = 12,
+       height = 12)
+
+immune_cell_types <- c("Plasma cells", "Macrophages M2", "Macrophages M1",
+                       "Eosinophils", "Dendritic cells activated", "Dendritic cells resting",
+                       "T cells CD8", "NK cells resting", "Mast cells resting")
+
+df.m.subset <- df.m[df.m$variable %in% immune_cell_types, ]
+
+df.m.subset.summary <- df.m.subset %>%
+  group_by(variable) %>%
+  summarise(max_value = max(value), p_value = dplyr::first(p_value)) %>%
+  ungroup()
+
+
+ggplot(df.m.subset, aes(x = group, y = value, fill = group)) +
+  geom_boxplot() +
+  labs(x = "group", y = "Expression Level") +
+  theme_bw() +
+  theme(legend.position = "none") +
+  facet_wrap(~ variable, scales = "free_y") +
+  geom_text(
+    data = df.m.subset.summary,
+    aes(x = 1, y = max_value, label = paste("P-value =", p_value)),
+    inherit.aes = FALSE,
+    hjust = -0.25, vjust = 1
   )
 
 
-ggsave("C://Users/Gerard/Desktop/AAA/RNAseq/Cibersort/Plot.png", width = 16, height = 14)
 
 
 
 
-
-
-
-
-
-
-
-
-
-mpg_plot <- ggplot(mpg, aes(x = displ, y = hwy, fill = manufacturer )) +
-  geom_point() +
-  facet_grid(. ~ drv)
-
-# A data frame with labels for each facet
-f_labels <- data.frame(drv = c("4", "f", "r"), label = c("4wd", "Front", "Rear"))
-
-mpg_plot +
-  geom_text(x = 6, y = 40, aes(label = label), data = f_labels)                                 
-                                    
-                                    
-                                    
-                  
