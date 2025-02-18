@@ -45,6 +45,20 @@ bio <- bio[bio$Muestra %in% colnames(counts.tpm),]
 
 # Smoking:
 bio$Smoking2 <- ifelse(bio$Smoking == 0, 0, 1)
+names(bio)
+nrow(bio)
+
+# Aortic Diameter:
+bio$aortc_diameter_mm_2 <- ifelse(bio$aortc_diameter_mm > 55, 2, 1)
+table(bio$aortc_diameter_mm_2, useNA = "always")
+```
+
+
+```{r}
+bio2 <- na.omit(bio[,c("Muestra","aortc_diameter_mm_2")])
+
+ggplot(bio2, aes(x=aortc_diameter_mm_2, y = Muestra)) + 
+  geom_point()
 ```
 
 
@@ -69,9 +83,15 @@ paste0("We remove ", sum(!keep), " genes") # 12,511
 
 ```{r}
 counts.tpm <- as.data.frame(normalize.quantiles(as.matrix(dge$counts), keep.names = TRUE))
+
+
+table(bio$Status, bio$med_statins)
 ```
 
-### Manual Differential Expression:
+
+
+
+### Manual Differential Expression (No smoking):
 
 ```{r}
 print(paste0("There are ",sum(is.na(bio$aortc_diameter_mm))," NAs"))
@@ -93,12 +113,38 @@ Coef <-
 ```
 
 
+
+### Manual Differential Expression (Including Smoking) (Sensibility analysis):
+
+```{r}
+print(paste0("There are ",sum(is.na(bio$aortc_diameter_mm))," NAs"))
+
+Pvalue <-
+  apply(counts.tpm, 1, function(x)
+    summary(
+      lm(
+        x ~ bio$aortc_diameter_mm + tec$Date + tec$Batch + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age + bio$SEXO + bio$Smoking
+      )
+    )[4][[1]][2, 4])
+Coef <-
+  apply(counts.tpm, 1, function(x)
+    summary(
+      lm(
+        x ~ bio$aortc_diameter_mm + tec$Date + tec$Batch + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age + bio$SEXO + bio$Smoking
+      )
+    )[4][[1]][2, 1])
+```
+
+
+
+
+
 ### Plot P-values:
 
 ```{r}
-png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Results/Hist_Diameter.png", height = 10000, width = 10000, res = 1200)
-hist(Pvalue, main = "")
-dev.off()
+#png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Results/Hist_Diameter.png", height = 10000, width = 10000, res = 1200)
+#hist(Pvalue, main = "")
+#dev.off()
 
 hist(Pvalue, main = "")
 ```
@@ -132,19 +178,51 @@ Results <- Results[order(Results$pvalue),]
 
 nrow(Results[Results$fdr < 0.05,]) # 32
 
-
-# Load ischemic time results:
-
-isc <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Ischemic/Ichemic_Time_Genes.xlsx")
-head(isc)
+# 32 DEGs when not correcting for Smoking.
+# 19 DEGs when also correcting for Smoking.
+```
 
 
-length(intersect(rownames(Results[Results$fdr < 0.05,]), isc$Gene_Name)) # 19
+```{r}
+cc <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Cases_Controls_No_Smoking.xlsx")
+nrow(cc)
+
+intersect(cc$Gene.Name, rownames(Results[Results$fdr < 0.05,]))
+# EXTL3, ZFR, DUSP8, RFX1.
+
+setdiff(rownames(Results[Results$fdr < 0.05,]), cc$Gene.Name)
+
+length(intersect(cc$Gene.Name, rownames(Results[Results$fdr < 0.05,])))
 
 #write.xlsx(Results, "C://Users/Gerard/Desktop/AAA/RNAseq/AllRes/Diameter.xlsx", quote = F, rowNames = T, colNames = T)
 
 #write.xlsx(Results[Results$fdr < 0.05,], "C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Diameter.xlsx", sep = "\t", rowNames = T)
 ```
+
+### Sensitivity results comparing with Large vs Control and Small vs Control:
+```{r}
+Results[Results$fdr < 0.05,]
+sig.dia <- rownames(Results[Results$fdr < 0.05,])
+sig.dia # 32 Genes.
+
+sm <- read_excel("C://Users/Gerard/Downloads/Small_AAA.xls")
+lar <- read_excel("C://Users/Gerard/Downloads/Large_AAA.xls")
+
+sm[sm$Symbol %in% sig.dia,]
+lar[lar$Symbol %in% sig.dia,]
+
+
+sig.res <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Cases_Controls_Confounders.xlsx")
+nrow(sig.res) # 7,454
+
+
+sig.res[sig.res$Gene.Name %in% sig.dia,] # 4 Common between Diameter and Case Control CONFOUNDERS.
+
+Results[rownames(Results) %in% c("USP33"),] # Beta > 0.
+
+Results[rownames(Results) %in% c("EXTL3","ZFR","VPS37C"),]
+```
+
 
 
 ### Diameter:
