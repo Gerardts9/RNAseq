@@ -105,6 +105,7 @@ split_alleles <- function(df) {
 # Allele 'a' and Allele 'b' counts for each control sample and gene:
 ######################
 controls <- fread("/home/gerard/AAA/ASE/phASER_WASP_GTEx_v8_matrix.txt.gz")
+#controls <- fread("/home/gerard/AAA/ASE/phASER_WASP_GTEx_v8_matrix.gw_phased.txt.gz")
 
 # Select Artery Aorta samples: 
 ss <- fread("/home/gerard/AAA/ASE/annotations_v8_metadata-files_GTEx_Analysis_v8_Annotations_SampleAttributesDS.txt")
@@ -513,7 +514,6 @@ alelic.counts$binom_q <- p.adjust(alelic.counts$binom_p, method = "fdr")
 ######################
 
 
-
 # Load gene counts:
 ######################
 # Concatenate all files:
@@ -663,9 +663,11 @@ intersect(sel.genes$Gene_Name, twas.genes)
 # Compare if genes are also present in the GWAS of AAAgen:
 gwas.res <- readxl::read_xls("/home/gerard/AAA/ASE/AAAgen Supplementary.xls", sheet = 14, skip = 1)
 head(gwas.res)
+nrow(gwas.res)
 
 intersect(sel.genes$Gene_Name, gwas.res$`Prioritized gene`)
 # SPP1 and THBS2 genes.
+
 
 
 #########
@@ -683,6 +685,8 @@ snurf.vars
 alelic.counts[alelic.counts$variantID %in% snurf.vars &
                 alelic.counts$binom_q < 0.05,]
 
+alelic.counts[alelic.counts$variantID == "chr15_24974365_T_C",]
+
 
 sum(alelic.counts[alelic.counts$variantID == "chr15_24974365_T_C",]$refCount)
 sum(alelic.counts[alelic.counts$variantID == "chr15_24974365_T_C",]$altCount)
@@ -697,6 +701,18 @@ gwas[gwas$chr == 15 & gwas$pos == 24974365,]
 # Chek eQTL:
 eqtl.blood[grep("chr15_24974365", eqtl.blood$variant_id),] # In Blood, eQTL of SNRPN.
 eqtl.aorta[grep("chr15_24974365", eqtl.aorta$variant_id),] # In Artery Aorta, eQTL of lnc-SNRPN-8.
+
+
+cases <- fread("/home/gerard/AAA/ASE/Cases_Counts.txt")
+cases <- cases %>% remove_rownames %>% column_to_rownames(var="V1")
+
+controls <- fread("/home/gerard/AAA/ASE/Controls_Counts.txt")
+controls <- controls %>% remove_rownames %>% column_to_rownames(var="V1")
+
+cases[,grep("ENSG00000273173", names(cases))]
+controls[,grep("ENSG00000273173", names(controls))]
+
+ann[ann$gene_id %in% "ENSG00000273173.5",]
 
 
 
