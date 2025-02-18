@@ -22,6 +22,11 @@ table(bio$Status)
 
 bio.cases <- bio[bio$Status == "Case",]
 bio.controls <- bio[bio$Status == "Control",]
+
+bio.controls$Pathology[!is.na(bio.controls$Pathology)]
+
+sum(is.na(bio.controls$Pathology))/nrow(bio.controls)
+# 0.48
 ```
 
 
@@ -91,6 +96,8 @@ table(bio.cases$Smoking, useNA = "always")
 100*(42/nrow(bio.cases[!is.na(bio.cases$Smoking),])) # Former smokers.
 100*(27/nrow(bio.cases[!is.na(bio.cases$Smoking),])) # Current smokers.
 
+
+# Current smokers:
 controls <- c(8, 29) # Number of current smokers vs non in controls
 cases <- c(27, 57) # Number of current smokers vs non in cases
 
@@ -99,8 +106,17 @@ data_matrix <- rbind(controls, cases)
 chisq.test(data_matrix)
 
 
+# Past smokers:
 controls <- c(3, 34) # Number of past smokers vs non in controls
 cases <- c(42, 42) # Number of past smokers vs non in cases
+
+data_matrix <- rbind(controls, cases)
+
+chisq.test(data_matrix)
+
+# Never smokers:
+controls <- c(26, 11) # Number of never smokers vs non in controls
+cases <- c(15, 69) # Number of never smokers vs non in cases
 
 data_matrix <- rbind(controls, cases)
 
@@ -285,6 +301,118 @@ data_matrix <- rbind(controls, cases)
 
 chisq.test(data_matrix)
 ```
+
+
+
+# ANTIHYPERTENSIVE
+```{r}
+table(bio$med_antihypertensive, useNA="always")
+100*(20/nrow(bio))
+
+
+table(bio.controls$med_antihypertensive, useNA = "always")
+100*(2/(2+35))
+
+table(bio.cases$med_antihypertensive, useNA = "always")
+100*(37/(17+67))
+
+
+controls <- c(2, 35) # Number of med_antihypertensive in controls
+cases <- c(37, 46) # Number of med_antihypertensive in AAA
+
+data_matrix <- rbind(controls, cases)
+
+chisq.test(data_matrix)
+```
+
+
+
+# ASPIRIN
+```{r}
+table(bio$med_AINES_i_aspirina, useNA="always")
+100*(20/nrow(bio))
+
+
+table(bio.controls$med_AINES_i_aspirina, useNA = "always")
+100*(0/(37))
+
+table(bio.cases$med_AINES_i_aspirina, useNA = "always")
+100*(15/(15+68))
+
+
+controls <- c(0, 37) # Number of med_AINES_i_aspirina in controls
+cases <- c(15, 68) # Number of med_AINES_i_aspirina in AAA
+
+data_matrix <- rbind(controls, cases)
+
+chisq.test(data_matrix)
+```
+
+# GLUCOCORTICOIDS:
+```{r}
+table(bio$med_glucocorticoids, useNA="always")
+100*(7/nrow(bio))
+
+
+table(bio.controls$med_glucocorticoids, useNA = "always")
+100*(1/(36+1))
+
+table(bio.cases$med_glucocorticoids, useNA = "always")
+100*(6/(6+77))
+
+
+controls <- c(1, 36) # Number of med_glucocorticoids in controls
+cases <- c(6, 77) # Number of med_glucocorticoids in AAA
+
+data_matrix <- rbind(controls, cases)
+
+chisq.test(data_matrix)
+```
+
+
+# STATINS:
+```{r}
+table(bio$med_statins, useNA="always")
+100*(20/nrow(bio))
+
+
+table(bio.controls$med_statins, useNA = "always")
+100*(7/(30+7))
+
+table(bio.cases$med_statins, useNA = "always")
+100*(63/(63+20))
+
+
+controls <- c(7, 30) # Number of med_statins in controls
+cases <- c(63, 20) # Number of med_statins in AAA
+
+data_matrix <- rbind(controls, cases)
+
+chisq.test(data_matrix)
+```
+
+
+# ANTICOAGULANTS:
+```{r}
+table(bio$med_anticoagulants, useNA="always")
+100*(20/nrow(bio))
+
+
+table(bio.controls$med_anticoagulants, useNA = "always")
+100*(3/(3+34))
+
+table(bio.cases$med_anticoagulants, useNA = "always")
+100*(46/(46+37))
+
+
+controls <- c(3, 34) # Number of med_anticoagulants in controls
+cases <- c(46, 37) # Number of med_anticoagulants in AAA
+
+data_matrix <- rbind(controls, cases)
+
+chisq.test(data_matrix)
+```
+
 
 # DIAMETER:
 ```{r}
