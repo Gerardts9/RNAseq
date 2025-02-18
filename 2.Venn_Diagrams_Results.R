@@ -7,11 +7,9 @@ head(ann)
 
 # Load Results:
 #################################################
-cc <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Cases_Controls_No_Smoking.xlsx")
-cc_no_it <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Cases_Controls_No_Smoking_No_IT.xlsx")
+cc <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Cases_Controls_Confounders.xlsx")
+cc_no_it <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Cases_Controls_Confounders_No_IT.xlsx")
 dia <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Diameter.xlsx")
-sym <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Symptoms.xlsx")
-type <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Type.xlsx")
 
 length(unique(c(dia$Gene.Name, sym$Gene.Name)))
 length(intersect(cc$Gene.Name, dia$Gene.Name))
@@ -27,6 +25,16 @@ med$Gene.Symbol <- gsub("-", "", med$Gene.Symbol)
 
 adv <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/TunicaSpecificResults.xlsx", sheet = 2)
 adv$Gene.Symbol <- gsub("-", "", adv$Gene.Symbol)
+
+nrow(cc)
+nrow(cc_no_it)
+
+intersect(unique(alt$gene_name), cc$Gene.Name)
+intersect(unique(alt$gene_name), cc_no_it$Gene.Name)
+
+intersect(unique(dia$Gene.Name), cc$Gene.Name)
+intersect(unique(dia$Gene.Name), cc_no_it$Gene.Name)
+
 #################################################
 
 # CaseControl vs Previous Results (Media and Adventitia):
