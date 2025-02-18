@@ -23,10 +23,49 @@ library(openxlsx);library(data.table);library(stringr);library(dplyr)
 ann <- fread("C://Users/Gerard/Desktop/AAA/RNAseq/Annotation/gencode.v26.annotation.gtf.gz", header = F, nThread = 6)
 ```
 
+```{r}
+head(ann)
+
+# MT Genes:
+ann[grep("ENSG00000198888", ann$V9),] # MT-ND1
+ann[grep("ENSG00000198763", ann$V9),] # MT-ND2
+ann[grep("ENSG00000198840", ann$V9),] # MT-ND3
+ann[grep("ENSG00000198886", ann$V9),] # MT-ND4
+ann[grep("ENSG00000212907", ann$V9),] # MT-ND4L
+ann[grep("ENSG00000198786", ann$V9),] # MT-ND5
+ann[grep("ENSG00000198695", ann$V9),] # MT-ND6
+ann[grep("ENSG00000198727", ann$V9),] # MT-CYB
+ann[grep("ENSG00000198804", ann$V9),] # MT-CO1
+ann[grep("ENSG00000198712", ann$V9),] # MT-CO2
+ann[grep("ENSG00000198938", ann$V9),] # MT-CO3
+ann[grep("ENSG00000198899", ann$V9),] # MT-ATP6
+ann[grep("ENSG00000228253", ann$V9),] # MT-ATP8
+```
+
+
+
+
+
 ### Select only genes:
 
 ```{r}
 ann <- ann[ann$V3 == "gene",]
+
+
+ann[grep("ENSG00000152234", ann$V9),]
+ann[grep("ENSG00000110955", ann$V9),]
+ann[grep("ENSG00000165629", ann$V9),]
+ann[grep("ENSG00000099624", ann$V9),]
+ann[grep("ENSG00000124172", ann$V9),]
+ann[grep("ENSG00000159199", ann$V9),]
+ann[grep("ENSG00000135390", ann$V9),]
+ann[grep("ENSG00000154518", ann$V9),]
+ann[grep("ENSG00000169020", ann$V9),]
+ann[grep("ENSG00000241468", ann$V9),]
+ann[grep("ENSG00000167283", ann$V9),]
+ann[grep("ENSG00000116459", ann$V9),]
+ann[grep("ENSG00000167863", ann$V9),]
+ann[grep("ENSG00000154723", ann$V9),]
 ```
 
 ```{r}
@@ -48,6 +87,7 @@ keepGeneLevel <- which(grepl("level 1", geneLevel) | grepl("level 2", geneLevel)
 ann <- ann[keepGeneLevel,]
 paste("We have", nrow(ann), "genes keeping only annotation levels 1 and 2.")
 ```
+
 
 ```{r}
 # Add gene_id and gene_name to the annotation file:
