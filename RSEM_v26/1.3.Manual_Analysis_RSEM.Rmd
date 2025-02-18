@@ -47,6 +47,13 @@ table(bio$TIPOANEURISMA, useNA="always")
 
 # Smoking:
 bio$Smoking2 <- ifelse(bio$Smoking == 0, 0, 1)
+
+names(bio)
+bio2 <- bio[,c("Status","SEXO","age","Smoking","CVE","med_antihypertensive","med_statins","med_anticoagulants")]
+
+bio3 <- na.omit(bio2)
+
+table(bio3$Status)
 ```
 
 
@@ -75,6 +82,9 @@ paste0("We remove ", sum(!keep), " genes") # 12,615
 
 ```{r}
 counts.tpm <- as.data.frame(normalize.quantiles(as.matrix(dge$counts), keep.names = T))
+
+table(bio$Status, bio$med_statins)
+
 ```
 
 
@@ -118,12 +128,35 @@ Coef <-
 ```
 
 
+
+### Manual Differential Expression with SIGNIFICANT CONFOUNDERS:
+
+```{r}
+Pvalue <-
+  apply(counts.tpm, 1, function(x)
+    summary(
+      lm(
+        x ~ tec$Case + tec$FC + tec$Lane + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age + bio$SEXO + bio$Smoking + bio$CVE + bio$med_antihypertensive + bio$med_statins + bio$med_anticoagulants
+      )
+    )[4][[1]][2, 4])
+
+Coef <-
+  apply(counts.tpm, 1, function(x)
+    summary(
+      lm(
+        x ~ tec$Case + tec$FC + tec$Lane + tec$GC_Mean + tec$RIN + tec$DV200 + tec$Qubit + bio$age + bio$SEXO + bio$Smoking + bio$CVE + bio$med_antihypertensive + bio$med_statins + bio$med_anticoagulants
+      )
+    )[4][[1]][2, 1])
+```
+
+
+
 ### Plot P-values:
 
 ```{r}
-png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Results/Hist_Cases_vs_Controls.png", height = 10000, width = 10000, res = 1200)
-hist(Pvalue, main = "", cex.main = 2)
-dev.off()
+#png(file = "C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Results/Hist_Cases_vs_Controls.png", height = 10000, width = 10000, res = 1200)
+#hist(Pvalue, main = "", cex.main = 2)
+#dev.off()
 
 hist(Pvalue, main = "", cex.main = 2)
 ```
@@ -155,15 +188,22 @@ Results <- Results[!duplicated(Results$gene_name),]
 Results <- Results %>% remove_rownames %>% column_to_rownames(var="gene_name")
 Results <- Results[order(Results$pvalue),]
 
-nrow(Results[Results$fdr < 0.05,]) # 7,454
+nrow(Results[Results$fdr < 0.05,])
+
+# 7,454 DEGs correcting for technical and AGE and SEX.
+# 5,842 DEGs correcting for SIGNIFICANT CONFOUNDERS.
 
 #write.xlsx(Results, "C://Users/Gerard/Desktop/AAA/RNAseq/AllRes/Cases_Controls.xlsx", quote = F, rowNames = T, colNames = T)
 
-#write.xlsx(Results[rownames(Results) %in% glist,], "C://Users/Gerard/Desktop/AAA/RNAseq/Genes.xlsx", rowNames = T)
+#write.xlsx(Results, "C://Users/Gerard/Desktop/AAA/RNAseq/AllRes/Cases_Controls_Confounders.xlsx", quote = F, rowNames = T, colNames = T)
 
+
+#write.xlsx(Results[rownames(Results) %in% glist,], "C://Users/Gerard/Desktop/AAA/RNAseq/Genes.xlsx", rowNames = T)
 #write.table(rownames(head(Results, 50)), "C://Users/Gerard/Desktop/Top50Genes.txt", quote = F, rowNames = F, col.names = F)
 
 #write.xlsx(Results[Results$fdr < 0.05,], "C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Cases_Controls_No_Smoking.xlsx", sep = "\t", rowNames = T)
+
+#write.xlsx(Results[Results$fdr < 0.05,], "C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Cases_Controls_Confounders.xlsx", sep = "\t", rowNames = T)
 ```
 
 
@@ -171,7 +211,7 @@ nrow(Results[Results$fdr < 0.05,]) # 7,454
 ### DEG:
 
 ```{r, warning=FALSE, message=FALSE, echo=FALSE}
-library(clusterProfiler);library(org.Hs.eg.db);library(enrichplot);library(ggplot2);library(enrichplot);library("ggupset");library(ggtree);library(aPEAR)
+library(clusterProfiler);library(org.Hs.eg.db);library(enrichplot);library(ggplot2);library(enrichplot);library(ggupset);library(ggtree);library(aPEAR)
 ```
 
 
@@ -187,8 +227,9 @@ go_enrich <- enrichGO(gene          = entrez_ids$ENTREZID,
                       ont           = "ALL", # Choose from "BP" (Biological Process), "CC" (Cellular Component), or "MF" (Molecular Function)
                       pAdjustMethod = "BH",
                       pvalueCutoff  = 0.05,
-                      qvalueCutoff  = 0.2,
-                      readable = T)
+                      qvalueCutoff  = 0.2)
+
+head(go_enrich, 3)
 ```
 
 
@@ -196,15 +237,16 @@ go_enrich <- enrichGO(gene          = entrez_ids$ENTREZID,
 ### Save results:
 
 ```{r}
-#write.xlsx(go_enrich@result, "C://Users/Gerard/Desktop/AAA/RNAseq/Supplementary_Tables/GO_Enrich.xlsx")
+#write.xlsx(go_enrich@result, "C://Users/Gerard/Desktop/AAA/RNAseq/Supplementary_Tables/GO_Enrich_Confounders.xlsx")
+
+go_enrich@result <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Supplementary_Tables/GO_Enrich_Confounders.xlsx")
 ```
 
 
 
-
 ```{r}
-clusters <- findPathClusters(go_enrich@result, cluster = 'hier', minClusterSize = 15)
-clusters$clusters
+clusters <- findPathClusters(go_enrich@result, cluster = 'hier', minClusterSize = 10)
+unique(clusters$clusters$Cluster)
 it.clusters <- unique(clusters$clusters$Cluster)
 ```
 
@@ -212,30 +254,33 @@ it.clusters <- unique(clusters$clusters$Cluster)
 ```{r}
 set.seed(5)
 
-#tiff("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Enrichment/PathCluster_7.tiff", height = 3500, width = 3500, res = 350)
-plotPathClusters(
+pdf("C://Users/Gerard/Desktop/Clusters.pdf", height = 12, width = 12)
+plot <- plotPathClusters(
   enrichment = go_enrich@result,
   sim = clusters$similarity,
   clusters = clusters$clusters,
   fontSize = 8,
-  outerCutoff = 0.1,
+  outerCutoff = 0.2,
   drawEllipses = TRUE,
   nodeSize = "Count",
   colorBy = "pvalue",
   colorType = 'pval',
   repelLabels = TRUE
 )
-#dev.off()
+
+legend(plot, title = NULL, cex = 1.5)  # Adjust cex value for desired size
+
+dev.off()
 ```
 
 
 
 ```{r}
 # GO enrichment dot plot:
-png("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Enrichment/GO_Cases_vs_Controls_No_Smoking.png", width = 4*800, height = 4*600, res = 300)
+#png("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Enrichment/GO_Cases_vs_Controls_No_Smoking.png", width = 4*800, height = 4*600, res = 300)
 dotplot(go_enrich, showCategory = 20) + ggtitle("GO Enrichment") +
   theme(plot.title = element_text(hjust = 0.5))
-dev.off()
+#dev.off()
 ```
 
 ```{r}
@@ -322,9 +367,11 @@ Results_No_IT <- Results[!rownames(Results) %in% isch$Gene_Name,]
 nrow(Results_No_IT[Results_No_IT$fdr < 0.05,]) # 3,002
 nrow(Results_No_IT)
 
+# 2374 DEGs without Ischemic Time effect, correcting for SIGNIFICANT CONFOUNDERS.
+
 #write.xlsx(Results, "C://Users/Gerard/Desktop/AAA/RNAseq/AllRes/Cases_Controls_NoIT.xlsx", quote = F, rowNames = T, colNames = T)
 
-#write.xlsx(Results[Results$fdr < 0.05,], "C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Cases_Controls_No_Smoking_No_IT.xlsx", sep = "\t", rowNames = T)
+#write.xlsx(Results_No_IT[Results_No_IT$fdr < 0.05,], "C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Cases_Controls_Confounders_No_IT.xlsx", sep = "\t", rowNames = T)
 ```
 
 
@@ -367,28 +414,28 @@ go_enrich_no_it <- enrichGO(gene    = entrez_ids$ENTREZID,
 ### Save results:
 
 ```{r}
-#write.xlsx(go_enrich_no_it@result, "C://Users/Gerard/Desktop/AAA/RNAseq/Supplementary_Tables/GO_Enrich_NO_IT.xlsx")
+#write.xlsx(go_enrich_no_it@result, "C://Users/Gerard/Desktop/AAA/RNAseq/Supplementary_Tables/GO_Enrich_NO_IT_Confounders.xlsx")
+
+go_enrich_no_it@result <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Supplementary_Tables/GO_Enrich_NO_IT_Confounders.xlsx")
 ```
 
 
 
 ```{r}
-clusters_no_it <- findPathClusters(go_enrich_no_it@result, cluster = 'hier', minClusterSize = 15)
-class(clusters_no_it$clusters)
+clusters_no_it <- findPathClusters(go_enrich_no_it@result, cluster = 'hier', minClusterSize = 10)
+unique(clusters_no_it$clusters$Cluster)
 
 no.it.clusters <- unique(clusters_no_it$clusters$Cluster)
 ```
 
 
+
 # Select paths related to Calcium and ATP:
 
 ```{r}
-ca.paths <- clusters$clusters[clusters$clusters$Cluster %in% "regulation of sequestering of calcium ion",]$Pathway
+ca.paths <- clusters_no_it$clusters[clusters_no_it$clusters$Cluster %in% "regulation of sequestering of calcium ion",]$Pathway
 
-atp.paths <- clusters$clusters[clusters$clusters$Cluster %in% "ATP synthesis coupled electron transport",]$Pathway
-
-
-clusters_no_it$clusters[clusters_no_it$clusters$Cluster %in% c("regulation of sequestering of calcium ion", "ATP synthesis coupled electron transport"),]
+atp.paths <- clusters_no_it$clusters[clusters_no_it$clusters$Cluster %in% "mitochondrial respirasome",]$Pathway
 ```
 
 
@@ -397,7 +444,7 @@ clusters_no_it$clusters[clusters_no_it$clusters$Cluster %in% c("regulation of se
 set.seed(4)
 
 tiff("C://Users/Gerard/Desktop/PathCluster_Abstract_4.tiff", height = 2500, width = 2500, res = 350)
-plotPathClusters(d
+plotPathClusters(
   enrichment = go_enrich_no_it@result,
   sim = clusters_no_it$similarity,
   clusters = clusters_no_it$clusters,
@@ -413,13 +460,12 @@ dev.off()
 ```
 
 
+
+# ATP pathways:
 ```{r}
 df <- go_enrich_no_it@result
 
-#df <- df[df$Description %in% ca.paths,]
-
 df <- df[df$Description %in% atp.paths,]
-
 
 df_split <- df %>%
  separate_rows(geneID, sep = "/")
@@ -427,17 +473,165 @@ df_split <- df %>%
 gene_counts <- table(df_split$geneID)
 gene_counts <- sort(gene_counts, decreasing = TRUE)
 
-genes <- head(gene_counts, 25)
+# Genes present in all the ATP pathways (17):
+genes <- head(gene_counts, 22)
 
-genes
+# Genes present in the complexes that form the electron transport chain:
+genes <- names(gene_counts)[grep("COX|NDUF|UQCC", names(gene_counts))]
 
-all.genes <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/AllGenes.xlsx")
-sum(all.genes[all.genes$Gene.Name %in% names(genes),]$Beta < 0)
-sum(all.genes[all.genes$Gene.Name %in% names(genes),]$Beta > 0)
+all.genes <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Cases_Controls_Confounders.xlsx")
 
+# Determine the directions of the genes in ATP pathways:
+sum(all.genes[all.genes$Gene.Name %in% (genes),]$Beta < 0) # 21
+sum(all.genes[all.genes$Gene.Name %in% (genes),]$Beta > 0) # 3
+
+# Determine the directions of the genes in ATP pathways:
+sum(all.genes[all.genes$Gene.Name %in% names(gene_counts),]$Beta < 0)
+sum(all.genes[all.genes$Gene.Name %in% names(gene_counts),]$Beta > 0)
+
+
+# Determine the novelty of the genes in ATP pathways:
 new.genes <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/NewGenes.xlsx")
 new.genes[new.genes$Gene.Name %in% names(genes),]
 ```
+
+
+
+# Calcium pathways:
+
+```{r}
+df <- go_enrich_no_it@result
+
+df <- df[df$Description %in% ca.paths,]
+
+df_split <- df %>%
+ separate_rows(geneID, sep = "/")
+
+gene_counts <- table(df_split$geneID)
+gene_counts <- sort(gene_counts, decreasing = TRUE)
+names(gene_counts)
+
+# Genes present in all the Ca pathways (17):
+genes <- head(gene_counts, 12)
+names(genes)
+
+all.genes <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/AllGenes.xlsx")
+
+# Determine the directions of the genes in Calcium pathways:
+all.genes[all.genes$Gene.Name %in% names(genes),]
+sum(all.genes[all.genes$Gene.Name %in% names(genes),]$Beta < 0)
+sum(all.genes[all.genes$Gene.Name %in% names(genes),]$Beta > 0)
+
+100*(82/(82+74))
+100*(8/(8+4))
+
+# Determine the novelty of the genes in Calcium pathways:
+new.genes <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/NewGenes.xlsx")
+new.genes[new.genes$Gene.Name %in% names(genes),]
+```
+
+
+
+
+### DEG New Genes:
+
+# Load ischemic time differentially expressed genes and new genes:
+
+```{r}
+new <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/NewGenes.xlsx")
+```
+
+
+```{r}
+Results_New <- Results[rownames(Results) %in% new$Gene.Name,] # 2,851
+```
+
+
+### Plot P-values:
+
+```{r}
+hist(Results_New$pvalue, main = "", xlab = "Pvalue")
+```
+
+
+```{r}
+gene_list <- substr(Results_New[Results_New$fdr < 0.05,]$gene_id, 1, 15)
+
+entrez_ids <- bitr(gene_list, fromType = "ENSEMBL", toType = "ENTREZID", OrgDb = org.Hs.eg.db)
+
+# GO enrichment analysis:
+go_enrich_new <- enrichGO(gene    = entrez_ids$ENTREZID,
+                      OrgDb         = org.Hs.eg.db,
+                      keyType       = "ENTREZID",
+                      ont           = "ALL", # Choose from "BP" (Biological Process), "CC" (Cellular Component), or "MF" (Molecular Function)
+                      pAdjustMethod = "BH",
+                      pvalueCutoff  = 0.05,
+                      qvalueCutoff  = 0.2,
+                      readable = T)
+```
+
+
+### Save results:
+
+```{r}
+#write.xlsx(go_enrich_new@result, "C://Users/Gerard/Desktop/AAA/RNAseq/Supplementary_Tables/GO_Enrich_New.xlsx")
+
+go_enrich_new@result <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Supplementary_Tables/GO_Enrich_New.xlsx")
+```
+
+```{r}
+go_enrich_new@result
+```
+
+
+```{r}
+clusters_new <- findPathClusters(go_enrich_new@result, cluster = 'hier', minClusterSize = 10)
+unique(clusters_new$clusters$Cluster)
+
+no.it.clusters <- unique(clusters_new$clusters$Cluster)
+```
+
+
+```{r}
+ribo.paths <- clusters_new$clusters[clusters_new$clusters$Cluster %in% "mitochondrial ribosome",]$Pathway
+```
+
+
+# Ribosome pathways:
+```{r}
+df <- go_enrich_new@result
+
+df <- df[df$Description %in% ribo.paths,]
+
+df_split <- df %>%
+ separate_rows(geneID, sep = "/")
+
+gene_counts <- table(df_split$geneID)
+gene_counts <- sort(gene_counts, decreasing = TRUE)
+
+# Genes present in all the "Mitochondrial ribosome" pathways (11):
+genes <- head(gene_counts, 22)
+
+
+all.genes <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/AllGenes.xlsx")
+
+# Determine the directions of the genes in ATP pathways:
+sum(all.genes[all.genes$Gene.Name %in% names(genes),]$Beta < 0)
+sum(all.genes[all.genes$Gene.Name %in% names(genes),]$Beta > 0)
+
+
+# Determine the novelty of the genes in "Mitochondrial ribosome" pathways:
+new.genes <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/NewGenes.xlsx")
+new.genes[new.genes$Gene.Name %in% names(genes),]
+```
+
+
+
+
+
+
+
+
 
 # Compare GO enrich results:
 
