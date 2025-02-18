@@ -5,13 +5,17 @@ ann$gene_id <- substr(ann$gene_id, 1, 15)
 head(ann)
 
 # New results:
-cc <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Cases_Controls.xlsx")
+cc <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/SigRes/Cases_Controls_No_Smoking.xlsx")
 head(cc)
+
 
 alt <- read.table("C://Users/Gerard/Desktop/AAA/RNAseq/SUPPA/AAA_Sig_Results.txt")
 alt$gene_id <- substr(rownames(alt), 1, 15)
 alt <- merge(alt, ann, by = "gene_id")
 
+# Ischemic time:
+isch <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/Ischemic/Ichemic_Time_Genes.xlsx")
+head(isch)
 
 # Microarray studies:
 med <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/TunicaSpecificResults.xlsx", sheet = 1)
@@ -25,6 +29,8 @@ down <- read.xlsx("C://Users/Gerard/Desktop/AAA/RNAseq/UpDown Results.xlsx", she
 
 smla <- read_excel("C://Users/Gerard/Desktop/AAA/RNAseq/SmallLargeResults.xls")
 
+cc <- cc[!cc$Gene.Name %in% isch$Gene_Name,]
+
 cc <- cc[!cc$Gene.Name %in% med$Gene.Symbol,]
 cc <- cc[!cc$Gene.Name %in% adv$Gene.Symbol,]
 
@@ -32,6 +38,7 @@ cc <- cc[!cc$Gene.Name %in% up$Gene.Symbol,]
 cc <- cc[!cc$Gene.Name %in% down$Gene.name,]
 
 cc <- cc[!cc$Gene.Name %in% smla$Gene.Symbol,]
+nrow(cc)
 
 #write.xlsx(cc[1:20,], "C://Users/Gerard/Desktop/ESHG/Poster/Table1V2.xlsx", sep = "\t")
 
