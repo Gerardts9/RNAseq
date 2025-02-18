@@ -94,7 +94,7 @@ dim(controls.tpm)
 
 table(AAA)
 
-glist <- c("THBS1","THBS2","THBS3")
+glist <- c("EXTL3","ZFR","VPS37C","ZNF784","DUSP8","USP33","RFX1","DISP1")
 
 
 for (gene in glist) {
@@ -123,7 +123,7 @@ for (gene in glist) {
   
   p
   
-  ggsave(paste0("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Specific/", gene, ".png"), width = 7, height = 5)
+  ggsave(paste0("C://Users/Gerard/Desktop/", gene, ".png"), width = 7, height = 5)
 }
 ########################################
 
@@ -207,11 +207,7 @@ head(counts)
 
 dia <- dia %>% remove_rownames %>% column_to_rownames(var="Muestra")
 
-glist <- c("ACKR2")
-
-#table(res$TIPOANEURISMA)
-#mean(res[res$TIPOANEURISMA == 1,]$Expression)
-#mean(res[res$TIPOANEURISMA == 2,]$Expression)
+glist <- c("EXTL3","ZFR","VPS37C","ZNF784","DUSP8","USP33","RFX1","DISP1")
 
 for (gene in glist) {
   res <- resid(lm(counts[gene,] ~ tec2$Date + tec2$Batch + tec2$GC_Mean + tec2$RIN + tec2$DV200 + tec2$Qubit + bio2$age + bio2$SEXO))
@@ -223,7 +219,7 @@ for (gene in glist) {
   y_coord <- max(res$Expression)
   x_coord <- mean(res$aortc_diameter_mm)
 
-  ggplot(res, aes(x = aortc_diameter_mm, y = Expression)) + geom_point(color = "orangered2") + ggtitle(paste(gene)) + ylab ("Expression") + xlab("Aortic Diameter (mm)") +
+  ggplot(res, aes(x = aortc_diameter_mm, y = Expression)) + geom_point(color = "orangered2") + ggtitle(paste(gene)) + ylab ("Expression (Normalized TPM)") + xlab("Aortic Diameter (mm)") +
     geom_smooth(method = 'lm', formula = y ~ x, color = "black") +
     theme(
       plot.title = element_text(hjust = 0.5, size = 22),
@@ -239,7 +235,7 @@ for (gene in glist) {
       axis.line = element_line(colour = "black")) +
     annotate("text", x = x_coord, y = y_coord, label = paste0("FDR P-value:", text))
 
-  ggsave(paste0("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/Specific/", gene, "_Diameter.png"), width = 7, height = 5)
+  ggsave(paste0("C://Users/Gerard/Desktop/AAA/RNAseq/Plots/", gene, "_Diameter.png"), width = 7, height = 5)
 }
 ########################################
 
